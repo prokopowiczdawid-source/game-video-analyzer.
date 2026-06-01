@@ -1,11 +1,10 @@
 import streamlit as st
-import yt_dlp
 from google import genai
 import os
 import time
 import cv2
 
-# 1. Premium Dashboard Layout & Style Configuration (FansFormers Branding)
+# 1. Premium FansFormers Responsive Theme Configuration
 st.set_page_config(page_title="FansFormers GAME Video Analytics", page_icon="⚽", layout="wide")
 
 # Advanced CSS injection for custom enterprise styling
@@ -44,19 +43,11 @@ st.markdown('<div class="sub-title">Predictive AI Creative Analytics powered by 
 
 # 2. Control Center Card Container (UX Box alignment)
 with st.container(border=True):
-    st.markdown("### 🛠️ Control Center")
-    cc_col1, cc_col2 = st.columns([2, 1])
+    st.markdown("### 🛠️ Strategic Control Center")
+    cc_col1, cc_col2 = st.columns([1, 1])
     
     with cc_col1:
-        source_type = st.radio("Choose Media Source Input:", ["YouTube Link", "Upload Local Video (MP4)"], horizontal=True)
-        if source_type == "YouTube Link":
-            video_url = st.text_input("🔗 Paste YouTube Video or Shorts URL:", placeholder="https://www.youtube.com/watch?v=...")
-            uploaded_file = None
-        else:
-            uploaded_file = st.file_uploader("📂 Drag & Drop Video File (.mp4):", type=["mp4"])
-            video_url = None
-
-    with cc_col2:
+        uploaded_file = st.file_uploader("📂 Drag & Drop Video File (.mp4):", type=["mp4"])
         intent_level = st.selectbox(
             "🎯 Select Campaign Intent (Objective):",
             [
@@ -65,28 +56,20 @@ with st.container(border=True):
                 "🎯 Close the Deal (Action Focus)"
             ]
         )
+
+    with cc_col2:
+        campaign_context = st.text_area(
+            "📝 Campaign Brief & Cultural Context:", 
+            placeholder="e.g., Mundial 2026 campaign, Target: Gen-Z football fans, Tone: High energy, Fast-paced food delivery app promotion.",
+            height=125
+        )
     
     st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-    run_btn = st.button("🚀 Run Match Analysis", use_container_width=True)
+    run_btn = st.button("🚀 Run FansFormers Analysis", use_container_width=True)
 
 st.divider()
 
-# 3. Technical Core Engines Configuration
-def download_youtube_video(url):
-    ydl_opts = {
-        'format': 'worst[ext=mp4]/worst',
-        'outtmpl': 'temp_video.mp4',
-        'overwrites': True,
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-        }
-    }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
-    return "temp_video.mp4"
-
+# 3. Technical Core Engines Configuration (Frame Extraction)
 def extract_video_frame(video_path, seconds):
     try:
         cap = cv2.VideoCapture(video_path)
@@ -127,23 +110,16 @@ tab_ov, tab_cr, tab_ed, tab_mo, tab_pr = st.tabs([
 if run_btn:
     if not api_key:
         st.error("Missing API Authentication. Please insert your API Key in the sidebar.")
-    elif source_type == "YouTube Link" and not video_url:
-        st.warning("Please enter a valid YouTube URL.")
-    elif source_type == "Upload Local Video (MP4)" and not uploaded_file:
-        st.warning("Please upload a local MP4 file.")
+    elif not uploaded_file:
+        st.warning("Please upload a local MP4 file to run the analysis pipeline.")
     else:
-        video_path = None
+        video_path = "temp_video.mp4"
         try:
             client = genai.Client(api_key=api_key.strip())
             
-            if source_type == "YouTube Link":
-                with st.spinner("📦 Fetching video stream from YouTube source..."):
-                    video_path = download_youtube_video(video_url)
-            else:
-                with st.spinner("📦 Staging uploaded video file onto server..."):
-                    video_path = "temp_video.mp4"
-                    with open(video_path, "wb") as f:
-                        f.write(uploaded_file.getbuffer())
+            with st.spinner("📦 Staging uploaded video file onto server..."):
+                with open(video_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
                 
             with st.spinner("🤖 Uploading asset to AI Sandbox..."):
                 video_file = client.files.upload(file=video_path)
@@ -154,13 +130,13 @@ if run_btn:
                 if video_file.state.name == "FAILED":
                     raise Exception("Multimodal processing pipeline failed inside AI Sandbox.")
 
-            with st.spinner("📊 Extracting video proof frames via OpenCV engine..."):
+            with st.spinner("📊 Extracting tactical video frames via OpenCV engine..."):
                 frame_2s = extract_video_frame(video_path, 2)
                 frame_5s = extract_video_frame(video_path, 5)
 
-            with st.spinner("🧠 Analyzing audiovisual spectrum. Scoring xGoal metrics..."):
+            with st.spinner("🧠 Analyzing audiovisual spectrum against Campaign Brief..."):
                 system_prompt = """
-                You are the Core AI Engine of the FansFormers Video Assessment Tool, an expert system specializing in YouTube video ad optimization based on FansFormers GAME Creative Best Practices. Your job is to analyze the provided video content (visual frames, audio, and transcript) against the FansFormers GAME Framework and output a highly actionable, role-based "Match Report" with an Expected Goals (xGoal) probability score from 0 to 100.
+                You are the Core AI Engine of the FansFormers Video Assessment Tool, an expert system specializing in YouTube video ad optimization based on FansFormers GAME Creative Best Practices. Your job is to analyze the provided video content (visual frames, audio, and transcript) against the FansFormers GAME Framework, while heavily adjusting your analysis weights based on the user's provided Campaign Brief and Cultural Context.
 
                 STRICT OUTPUT STRUCTURING RULE:
                 You MUST wrap each section of your response exactly within the specified delimiter tags so the frontend parser can separate them into dashboard tabs.
@@ -186,18 +162,19 @@ if run_btn:
                 [Strategic takeaways for the Producer / Director for future shoots]
                 ===PRODUCER_END===
 
-                CRITICAL CONTENT RULES:
+                CRITICAL REPORT CONTENT REQUIREMENTS:
                 1. All text must be in ENGLISH.
-                2. Rely strictly on technical metrics (e.g., Logo >10% area, Pacing 5 cuts in 5s, Visible Face first 5s).
-                3. Use structured tables and bold numbers to make it look like a premium executive report.
-                4. For each negative finding, clearly state the Gap, Impact, and Potential xGoal Lift (e.g., +15 xGoal Lift).
-                5. Do NOT mention Google or ABCD framework. Always refer to this as the FansFormers GAME Framework.
+                2. Do NOT mention Google or ABCD framework. Always refer to this as the FansFormers GAME Framework.
+                3. Under the ===OVERVIEW_START=== section, you MUST generate a "FansFormers Strategic Positioning & Stopwatch Table" tracking exactly:
+                   - Branding Presence (Start-End timestamps, Total Duration, Screen Area % estimate, and Awareness Benchmark check).
+                   - Call to Action (CTA) Presence (Start-End timestamps, Total Duration, Delivery style - text vs verbal, and Action Stage Benchmark check).
+                4. CONTEXT INTEGRATION RULE: You must cross-reference the video execution against the user's Brief and Context. Evaluate whether the pacing, vocabulary, and imagery fit the requested cultural event (e.g., Mundial) or target demographic. If there is a mismatch, penalize the xGoal score and output a clear "Contextual Drift Warning".
                 
                 ### THE FansFormers GAME FRAMEWORK DEFINITIONS
 
                 1. [G] GRAB ATTENTION
                 - Quick Pacing (First 5s): Look for 5 or more shot changes/visual cuts within the first 5 seconds.
-                - Tight Framing: Evaluate if subjects/products are tightly framed/zoomed-in (essential for YouTube Shorts).
+                - Tight Framing: Evaluate if subjects/products are tightly framed/zoomed-in (essential for vertical Shorts formats).
                 - Audio Power: Confirm presence of Voice (VO/Dialogue), Music, and Sound Effects.
                 - See & Say Supers: On-screen text must match the spoken words exactly in the same frame.
 
@@ -205,28 +182,37 @@ if run_btn:
                 - Brand Visual (3+ Times): Branding (logo, product, packaging) must appear on at least 3 non-consecutive frames.
                 - Brand Logo (Large): Check if the logo takes up at least 10% of the screen area.
                 - Brand Mention (First 5s): Brand or generic product category name must be heard in audio within the first 4.99 seconds.
-                - Product Focus: Ensure all audiovisual elements support the product/service narrative without distractions.
-
-                Note: The primary goal for Awareness ("Stop the Scroll") is to get noticed so the brand/product are remembered. Third-party meta-analysis confirms FansFormers GAME optimization yields an average +31-38% lift in sales and ROAS.
 
                 3. [M] MAKE CONNECTION
                 - Presence of People (Close-up): A human or animated character must take up at least 30% of the frame.
-                - Visible Face (First 5s): At least one human/animated face must be present in the first 5 seconds.
-                - Product Interaction & Context: Talent must physically interact with the product in a relatable, real-world setting.
-                - Expression of Benefit: Look for explicit verbal or visual demonstration of a tangible, problem-solving benefit.
+                - Visible Face (First 5s): At least one human face must be present in the first 5 seconds.
+                - Product Interaction & Context: Talent must physically interact with the product in a relatable setting.
 
                 4. [E] EXECUTE DIRECTION
                 - Call-to-Action: Detect specific CTA phrases in both Supers (text) and Audio (speech).
                 - Path to Purchase: Presence of a visual Search Bar or explicit mention of how/where to buy.
-                - Purchase Incentive / Urgency: Explicit mentions of limited time, scarcity, or special offers (excluding fine print).
+                - Purchase Incentive / Urgency: Explicit mentions of limited time, scarcity, or special offers.
                 """
 
-                user_context = f"Selected Strategy/Intent Level: {intent_level}."
+                user_context = f"Selected Intent Level: {intent_level}. Campaign Brief & Cultural Context Provided by Brand Manager: '{campaign_context}'."
 
-                response = client.models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents=[video_file, system_prompt, user_context]
-                )
+                # Automated Retry Loop for 503 Spikes
+                response = None
+                for attempt in range(3):
+                    try:
+                        response = client.models.generate_content(
+                            model='gemini-2.5-flash',
+                            contents=[video_file, system_prompt, user_context]
+                        )
+                        break
+                    except Exception as model_error:
+                        err_str = str(model_error)
+                        if "503" in err_str or "UNAVAILABLE" in err_str:
+                            if attempt < 2:
+                                time.sleep(4)
+                                st.toast(f"⚠️ Server heavily congested. Retrying analysis block (Attempt {attempt + 2}/3)...")
+                                continue
+                        raise model_error
                 
                 raw_report = response.text
                 
@@ -250,7 +236,7 @@ if run_btn:
 
         except Exception as e:
             st.error(f"Execution Error during analysis pipeline: {str(e)}")
-            if video_path and os.path.exists(video_path):
+            if os.path.exists(video_path):
                 os.remove(video_path)
 
 # 6. Render Layout according to State (Empty State UX Solution)
@@ -272,7 +258,7 @@ if st.session_state.get('analysis_done', False):
     with tab_mo: st.markdown(st.session_state['motion_data'])
     with tab_pr: st.markdown(st.session_state['producer_data'])
 else:
-    msg = "<div class='info-box'><p class='info-text'><strong>No match analysis loaded yet.</strong> Please configure your access key, select a video asset source above, and hit <b>'Run Match Analysis'</b> to generate your proprietary tactical dashboard report.</p></div>"
+    msg = "<div class='info-box'><p class='info-text'><strong>No match analysis loaded yet.</strong> Please configure your access key, select a video asset source above, and hit <b>'Run FansFormers Analysis'</b> to generate your proprietary tactical dashboard report.</p></div>"
     with tab_ov: st.markdown(msg, unsafe_allow_html=True)
     with tab_cr: st.markdown(msg, unsafe_allow_html=True)
     with tab_ed: st.markdown(msg, unsafe_allow_html=True)
