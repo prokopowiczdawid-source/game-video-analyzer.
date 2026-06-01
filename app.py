@@ -1,6 +1,6 @@
 import streamlit as st
 import yt_dlp
-import google.generativeai as genai
+from google import genai
 import os
 import time
 
@@ -10,12 +10,12 @@ st.set_page_config(page_title="GAME Video Assessment", page_icon="⚽", layout="
 st.title("⚽ GAME Video Assessment & xGoal Dashboard")
 st.subheader("Analityka kreacji wideo YouTube w oparciu o standardy Google ABCD")
 
-# 2. Sidebar - Miejsce na klucz API oraz instrukcję
+# 2. Sidebar - Miejsce na klucz API
 st.sidebar.header("🔑 Autoryzacja")
 api_key = st.sidebar.text_input("Wklej swój Gemini API Key:", type="password")
 st.sidebar.markdown("""
 [Skąd wziąć klucz?](https://aistudio.google.com/)
-Logujesz się na Google AI Studio, klikasz **'Get API Key'**, generujesz go i wklejasz tutaj.
+Logujesz się na Google AI Studio, klikasz **'Get API Key'** i kopiujesz klucz.
 """)
 
 st.sidebar.divider()
@@ -45,13 +45,12 @@ with col2:
         ]
     )
 
-# 4. Podkręcona funkcja pobierania wideo (Udaje prawdziwego użytkownika)
+# 4. Funkcja pobierania wideo
 def download_youtube_video(url):
     ydl_opts = {
-        'format': 'worst[ext=mp4]/worst',  # Pobieramy najmniejszy plik dla szybkości
+        'format': 'worst[ext=mp4]/worst',
         'outtmpl': 'temp_video.mp4',
         'overwrites': True,
-        # Te nagłówki pomagają ominąć blokadę HTTP 403 Forbidden
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -73,12 +72,11 @@ if st.button("🚀 Uruchom Analizę Meczu (Run Analysis)"):
     else:
         video_path = None
         try:
-            # Konfiguracja klucza dla Google AI
-            genai.configure(api_key=api_key)
+            # Nowy sposób inicjalizacji klienta (standard 2026)
+            client = genai.Client(api_key=api_key.strip())
             
-            # KROK 1: Pozyskanie pliku wideo
             if source_type == "Link YouTube":
-                with st.spinner("Step 1/3: Pobieranie wideo z YouTube... (Próbujemy ominąć zabezpieczenia)"):
+                with st.spinner("Step 1/3: Pobieranie wideo z YouTube..."):
                     video_path = download_youtube_video(video_url)
             else:
                 with st.spinner("Step 1/3: Przetwarzanie wgranego pliku..."):
@@ -86,18 +84,17 @@ if st.button("🚀 Uruchom Analizę Meczu (Run Analysis)"):
                     with open(video_path, "wb") as f:
                         f.write(uploaded_file.getbuffer())
                 
-            # KROK 2: Wysyłanie pliku do Google AI
             with st.spinner("Step 2/3: Wysyłanie pliku do analizy multimodalnej AI..."):
-                video_file = genai.upload_file(path=video_path)
+                # Nowa metoda uploadu plików dla zunifikowanego SDK
+                video_file = client.files.upload(file=video_path)
                 
                 while video_file.state.name == "PROCESSING":
                     time.sleep(2)
-                    video_file = genai.get_file(video_file.name)
+                    video_file = client.files.get(name=video_file.name)
                 
                 if video_file.state.name == "FAILED":
                     raise Exception("Przetwarzanie pliku wideo przez AI nie powiodło się.")
 
-            # KROK 3: Generowanie raportu
             with st.spinner("Step 3/3: Generowanie raportu taktycznego xGoal..."):
                 system_prompt = """
                 You are the Core AI Engine of the GAME Video Assessment Tool, an expert system specializing in YouTube video ad optimization based on Google's ABCD Creative Best Practices. Your job is to analyze the provided video content (visual frames, audio, and transcript) against the GAME Framework and output a highly actionable, role-based "Match Report" with an Expected Goals (xGoal) probability score from 0 to 100.
@@ -135,14 +132,17 @@ if st.button("🚀 Uruchom Analizę Meczu (Run Analysis)"):
 
                 user_context = f"Selected Objective: {intent_level}. Adjust evaluation weights based on this intent: 'Stop the Scroll' focuses heavily on [G] and early branding; 'Win the Mind' focuses on [M] and product value; 'Close the Deal' focuses on [E] and persistent CTA urgency."
 
-                model = genai.GenerativeModel(model_name="gemini-1.5-flash")
-                response = model.generate_content([video_file, system_prompt, user_context])
+                # Wywołanie nowoczesnego i szybkiego modelu gemini-2.5-flash
+                response = client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=[video_file, system_prompt, user_context]
+                )
                 
                 st.success("Analiza zakończona sukcesem! Oto Twój Match Report:")
                 st.markdown(response.text)
                 
-                # Czyszczenie chmury i serwera
-                genai.delete_file(video_file.name)
+                # Czyszczenie chmury przy użyciu nowego klienta
+                client.files.delete(name=video_file.name)
                 if os.path.exists(video_path):
                     os.remove(video_path)
                     
