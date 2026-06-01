@@ -19,14 +19,21 @@ Logujesz się na Google AI Studio, klikasz **'Get API Key'**, generujesz go i wk
 """)
 
 st.sidebar.divider()
-st.sidebar.info("Aplikacja analizuje obraz, dźwięk i tekst z linku YouTube, dopasowując go do wybranego celu twórczego.")
+st.sidebar.info("Aplikacja analizuje obraz, dźwięk i tekst z linku YouTube lub wgranego pliku, dopasowując go do wybranego celu twórczego.")
 
 # 3. Główny formularz aplikacji
 col1, col2 = st.columns([2, 1])
 
 with col1:
-    video_url = st.text_input("🔗 Link do publicznego filmu YouTube (Standard lub Shorts):", 
-                              placeholder="https://www.youtube.com/watch?v=...")
+    source_type = st.radio("Wybierz źródło wideo:", ["Link YouTube", "Wgraj plik wideo (MP4)"], horizontal=True)
+    
+    if source_type == "Link YouTube":
+        video_url = st.text_input("🔗 Link do filmu YouTube (Standard lub Shorts):", 
+                                  placeholder="https://www.youtube.com/watch?v=...")
+        uploaded_file = None
+    else:
+        uploaded_file = st.file_uploader("📂 Wybierz plik wideo ze swojego komputera (.mp4):", type=["mp4"])
+        video_url = None
 
 with col2:
     intent_level = st.selectbox(
@@ -38,12 +45,18 @@ with col2:
         ]
     )
 
-# 4. Funkcja do bezpiecznego pobierania wideo (tylko niska rozdzielczość na potrzeby AI)
+# 4. Podkręcona funkcja pobierania wideo (Udaje prawdziwego użytkownika)
 def download_youtube_video(url):
     ydl_opts = {
-        'format': 'worst[ext=mp4]/worst',  # Pobieramy najmniejszy plik mp4 z dźwiękiem, by oszczędzać czas i RAM
+        'format': 'worst[ext=mp4]/worst',  # Pobieramy najmniejszy plik dla szybkości
         'outtmpl': 'temp_video.mp4',
-        'overwrites': True
+        'overwrites': True,
+        # Te nagłówki pomagają ominąć blokadę HTTP 403 Forbidden
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+        }
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
@@ -53,20 +66,30 @@ def download_youtube_video(url):
 if st.button("🚀 Uruchom Analizę Meczu (Run Analysis)"):
     if not api_key:
         st.error("Proszę podać Gemini API Key w panelu bocznym!")
-    elif not video_url:
+    elif source_type == "Link YouTube" and not video_url:
         st.warning("Proszę wkleić poprawny link do filmu YouTube.")
+    elif source_type == "Wgraj plik wideo (MP4)" and not uploaded_file:
+        st.warning("Proszę wgrać plik wideo.")
     else:
+        video_path = None
         try:
             # Konfiguracja klucza dla Google AI
             genai.configure(api_key=api_key)
             
-            with st.spinner("Step 1/3: Pobieranie wideo z YouTube... (Może to zająć chwilę)"):
-                video_path = download_youtube_video(video_url)
+            # KROK 1: Pozyskanie pliku wideo
+            if source_type == "Link YouTube":
+                with st.spinner("Step 1/3: Pobieranie wideo z YouTube... (Próbujemy ominąć zabezpieczenia)"):
+                    video_path = download_youtube_video(video_url)
+            else:
+                with st.spinner("Step 1/3: Przetwarzanie wgranego pliku..."):
+                    video_path = "temp_video.mp4"
+                    with open(video_path, "wb") as f:
+                        f.write(uploaded_file.getbuffer())
                 
+            # KROK 2: Wysyłanie pliku do Google AI
             with st.spinner("Step 2/3: Wysyłanie pliku do analizy multimodalnej AI..."):
                 video_file = genai.upload_file(path=video_path)
                 
-                # Czekamy, aż Google przetworzy plik wideo w chmurze
                 while video_file.state.name == "PROCESSING":
                     time.sleep(2)
                     video_file = genai.get_file(video_file.name)
@@ -74,8 +97,8 @@ if st.button("🚀 Uruchom Analizę Meczu (Run Analysis)"):
                 if video_file.state.name == "FAILED":
                     raise Exception("Przetwarzanie pliku wideo przez AI nie powiodło się.")
 
+            # KROK 3: Generowanie raportu
             with st.spinner("Step 3/3: Generowanie raportu taktycznego xGoal..."):
-                # Główny prompt systemowy ze specyfikacją
                 system_prompt = """
                 You are the Core AI Engine of the GAME Video Assessment Tool, an expert system specializing in YouTube video ad optimization based on Google's ABCD Creative Best Practices. Your job is to analyze the provided video content (visual frames, audio, and transcript) against the GAME Framework and output a highly actionable, role-based "Match Report" with an Expected Goals (xGoal) probability score from 0 to 100.
 
@@ -110,23 +133,20 @@ if st.button("🚀 Uruchom Analizę Meczu (Run Analysis)"):
                 - Purchase Incentive / Urgency: Explicit mentions of limited time, scarcity, or special offers (excluding fine print).
                 """
 
-                # Kontekst wybranego celu biznesowego przekazany do modelu
                 user_context = f"Selected Objective: {intent_level}. Adjust evaluation weights based on this intent: 'Stop the Scroll' focuses heavily on [G] and early branding; 'Win the Mind' focuses on [M] and product value; 'Close the Deal' focuses on [E] and persistent CTA urgency."
 
-                # Uruchomienie najnowszego modelu multimodalnego Gemini 1.5 Flash
                 model = genai.GenerativeModel(model_name="gemini-1.5-flash")
                 response = model.generate_content([video_file, system_prompt, user_context])
                 
-                # Wyświetlenie gotowego raportu na ekranie
                 st.success("Analiza zakończona sukcesem! Oto Twój Match Report:")
                 st.markdown(response.text)
                 
-                # Czyszczenie pliku z serwera lokalnego
+                # Czyszczenie chmury i serwera
                 genai.delete_file(video_file.name)
                 if os.path.exists(video_path):
                     os.remove(video_path)
                     
         except Exception as e:
             st.error(f"Wystąpił błąd podczas analizy: {str(e)}")
-            if os.path.exists("temp_video.mp4"):
-                os.remove("temp_video.mp4")
+            if video_path and os.path.exists(video_path):
+                os.remove(video_path)
