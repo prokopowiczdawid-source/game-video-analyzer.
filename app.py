@@ -5,7 +5,7 @@ import os
 import time
 import cv2
 
-# 1. Premium FansFormers Dark/Light Responsive Theme Configuration
+# 1. Premium Dashboard Layout & Style Configuration (FansFormers Branding)
 st.set_page_config(page_title="FansFormers GAME Video Analytics", page_icon="⚽", layout="wide")
 
 # Advanced CSS injection for custom enterprise styling
@@ -170,112 +170,4 @@ if run_btn:
                 [Your overall performance assessment, xGoal breakdown table, and metric summaries]
                 ===OVERVIEW_END===
 
-                ===CREATIVE_START===
-                [Actionable tasks for the Creative / Copywriter]
-                ===CREATIVE_END===
-
-                ===EDITOR_START===
-                [Actionable tasks for the Video Editor]
-                ===EDITOR_END===
-
-                ===MOTION_START===
-                [Actionable tasks for the Motion & Graphic Designer]
-                ===MOTION_END===
-
-                ===PRODUCER_START===
-                [Strategic takeaways for the Producer / Director for future shoots]
-                ===PRODUCER_END===
-
-                CRITICAL CONTENT RULES:
-                1. All text must be in ENGLISH.
-                2. Rely strictly on technical metrics (e.g., Logo >10% area, Pacing 5 cuts in 5s, Visible Face first 5s).
-                3. Use structured tables and bold numbers to make it look like a premium executive report.
-                4. For each negative finding, clearly state the Gap, Impact, and Potential xGoal Lift (e.g., +15 xGoal Lift).
-                5. Do NOT mention Google or ABCD framework. Always refer to this as the FansFormers GAME Framework.
-                
-                ### THE FansFormers GAME FRAMEWORK DEFINITIONS
-
-                1. [G] GRAB ATTENTION
-                - Quick Pacing (First 5s): Look for 5 or more shot changes/visual cuts within the first 5 seconds.
-                - Tight Framing: Evaluate if subjects/products are tightly framed/zoomed-in (essential for YouTube Shorts).
-                - Audio Power: Confirm presence of Voice (VO/Dialogue), Music, and Sound Effects.
-                - See & Say Supers: On-screen text must match the spoken words exactly in the same frame.
-
-                2. [A] ANCHOR BRANDING
-                - Brand Visual (3+ Times): Branding (logo, product, packaging) must appear on at least 3 non-consecutive frames.
-                - Brand Logo (Large): Check if the logo takes up at least 10% of the screen area.
-                - Brand Mention (First 5s): Brand or generic product category name must be heard in audio within the first 4.99 seconds.
-                - Product Focus: Ensure all audiovisual elements support the product/service narrative without distractions.
-
-                Note: The primary goal for Awareness ("Stop the Scroll") is to get noticed so the brand/product are remembered. Third-party meta-analysis confirms FansFormers GAME optimization yields an average +31-38% lift in sales and ROAS.
-
-                3. [M] MAKE CONNECTION
-                - Presence of People (Close-up): A human or animated character must take up at least 30% of the frame.
-                - Visible Face (First 5s): At least one human/animated face must be present in the first 5 seconds.
-                - Product Interaction & Context: Talent must physically interact with the product in a relatable, real-world setting.
-                - Expression of Benefit: Look for explicit verbal or visual demonstration of a tangible, problem-solving benefit.
-
-                4. [E] EXECUTE DIRECTION
-                - Call-to-Action: Detect specific CTA phrases in both Supers (text) and Audio (speech).
-                - Path to Purchase: Presence of a visual Search Bar or explicit mention of how/where to buy.
-                - Purchase Incentive / Urgency: Explicit mentions of limited time, scarcity, or special offers (excluding fine print).
-                """
-
-                user_context = f"Selected Strategy/Intent Level: {intent_level}."
-
-                response = client.models.generate_content(
-                    model='gemini-1.5-flash',
-                    contents=[video_file, system_prompt, user_context]
-                )
-                
-                raw_report = response.text
-                
-                # Dynamic extraction
-                overview_data = extract_section(raw_report, "===OVERVIEW_START===", "===OVERVIEW_END===")
-                creative_data = extract_section(raw_report, "===CREATIVE_START===", "===CREATIVE_END===")
-                editor_data = extract_section(raw_report, "===EDITOR_START===", "===EDITOR_END===")
-                motion_data = extract_section(raw_report, "===MOTION_START===", "===MOTION_END===")
-                producer_data = extract_section(raw_report, "===PRODUCER_START===", "===PRODUCER_END===")
-                
-                st.session_state['analysis_done'] = True
-                st.session_state['overview_data'] = overview_data
-                st.session_state['creative_data'] = creative_data
-                st.session_state['editor_data'] = editor_data
-                st.session_state['motion_data'] = motion_data
-                st.session_state['producer_data'] = producer_data
-                st.session_state['f2s'] = frame_2s
-                st.session_state['f5s'] = frame_5s
-                
-                st.rerun()
-
-        except Exception as e:
-            st.error(f"Execution Error during analysis pipeline: {str(e)}")
-            if video_path and os.path.exists(video_path):
-                os.remove(video_path)
-
-# 6. Render Layout according to State (Empty State UX Solution)
-if st.session_state.get('analysis_done', False):
-    with tab_ov:
-        st.markdown("### 🖼️ Visual Proofs (Extracted Kicks)")
-        col_f1, col_f2 = st.columns(2)
-        with col_f1:
-            if st.session_state['f2s'] is not None:
-                st.image(st.session_state['f2s'], caption="The Hook Frame (00:02) - Pacing & Attention Check", use_container_width=True)
-        with col_f2:
-            if st.session_state['f5s'] is not None:
-                st.image(st.session_state['f5s'], caption="The Identity Frame (00:05) - Early Branding & Face Check", use_container_width=True)
-        st.divider()
-        st.markdown(st.session_state['overview_data'])
-        
-    with tab_cr: st.markdown(st.session_state['creative_data'])
-    with tab_ed: st.markdown(st.session_state['editor_data'])
-    with tab_mo: st.markdown(st.session_state['motion_data'])
-    with tab_pr: st.markdown(st.session_state['producer_data'])
-else:
-    # Premium Empty State UX Guide
-    msg = "<div class='info-box'><p class='info-text'><strong>No match analysis loaded yet.</strong> Please configure your access key, select a video asset source above, and hit <b>'Run Match Analysis'</b> to generate your proprietary tactical dashboard report.</p></div>"
-    with tab_ov: st.markdown(msg, unsafe_allow_html=True)
-    with tab_cr: st.markdown(msg, unsafe_allow_html=True)
-    with tab_ed: st.markdown(msg, unsafe_allow_html=True)
-    with tab_mo: st.markdown(msg, unsafe_allow_html=True)
-    with tab_pr: st.markdown(msg, unsafe_allow_html=True)
+                ===
