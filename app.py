@@ -83,7 +83,6 @@ def generate_pdf_report(overview, creative, editor, motion, producer, intent, fr
 
     pdf = FPDF()
     if not frames_data:
-        # Prevent crash if image grid execution fails
         pdf.add_page()
         pdf.set_font("Helvetica", "B", 14)
         pdf.cell(0, 10, "FansFormers GAME Report (Timeline Processing Fault)", ln=True)
@@ -338,7 +337,7 @@ if run_btn:
 
             with st.spinner("🧠 Generating deep multi-page corporate analysis against Brief & Context..."):
                 system_prompt = """
-                You are the Core AI Engine of the FansFormers Video Assessment Tool, an elite corporate system specializing in video ad optimization based on FansFormers GAME Creative Best Practices. Your job is to output a deep, highly exhaustive, role-based "Strategic Match Report" with an Expected Goals (xGoal) probability score from 0 to 100.
+                You are the Core AI Engine of the FailedFormers Video Assessment Tool, an elite corporate system specializing in video ad optimization based on FansFormers GAME Creative Best Practices. Your job is to output a deep, highly exhaustive, role-based "Strategic Match Report" with an Expected Goals (xGoal) probability score from 0 to 100.
 
                 CRITICAL INDENTATION & FORMATTING RULE:
                 Do NOT output markdown tables using pipe characters (|) or line dashes (---). They cause parsing errors in the PDF exporter. Instead, format all tables or data breakdowns as clean, capitalized text labels separated by arrows, colons or bullet points (e.g., "* BRANDING INTRO: 0:02 - 10% Screen Area").
@@ -373,109 +372,4 @@ if run_btn:
                 
                 ### THE FansFormers GAME FRAMEWORK DEFINITIONS
                 1. [G] GRAB ATTENTION (Pacing, Tight Framing, Audio Power, See & Say Supers)
-                2. [A] ANCHOR BRANDING (Brand Visual 3+ times, Logo Large >10%, Brand Mention first 5s)
-                3. [M] MAKE CONNECTION (Presence of People, Visible Face first 5s, Product Interaction)
-                4. [E] EXECUTE DIRECTION (CTA presence, Path to Purchase, Purchase Incentive)
-                """
-
-                user_context = f"Selected Intent Level: {intent_level}. Campaign Brief & Cultural Context Provided by Brand Manager: '{campaign_context}'."
-
-                # Core Failover Execution Engine
-                response = None
-                try:
-                    for attempt in range(3):
-                        try:
-                            response = client.models.generate_content(
-                                model='gemini-2.5-flash',
-                                contents=[video_file, system_prompt, user_context]
-                            )
-                            break
-                        except Exception as model_error:
-                            if "503" in str(model_error) or "UNAVAILABLE" in str(model_error):
-                                if attempt < 2:
-                                    time.sleep(3)
-                                    st.toast(f"⚠️ Flagship cluster busy. Retrying block ({attempt + 2}/3)...")
-                                    continue
-                            raise model_error
-                except Exception as primary_fault:
-                    st.toast("🔄 Flagship engine congested. Activating ultra-stable High-Capacity Fallback Engine...")
-                    response = client.models.generate_content(
-                        model='gemini-1.5-flash',
-                        contents=[video_file, system_prompt, user_context]
-                    )
-                
-                raw_report = response.text
-                
-                # Dynamic extraction
-                overview_data = extract_section(raw_report, "===OVERVIEW_START===", "===OVERVIEW_END===")
-                creative_data = extract_section(raw_report, "===CREATIVE_START===", "===CREATIVE_END===")
-                editor_data = extract_section(raw_report, "===EDITOR_START===", "===EDITOR_END===")
-                motion_data = extract_section(raw_report, "===MOTION_START===", "===MOTION_END===")
-                producer_data = extract_section(raw_report, "===PRODUCER_START===", "===PRODUCER_END===")
-                
-                st.session_state['overview_data'] = overview_data
-                st.session_state['creative_data'] = creative_data
-                st.session_state['editor_data'] = editor_data
-                st.session_state['motion_data'] = motion_data
-                st.session_state['producer_data'] = producer_data
-                st.session_state['timeline_data'] = timeline_data
-                st.session_state['analysis_done'] = True
-                
-                st.rerun()
-
-        except Exception as e:
-            st.error(f"Execution Error during analysis pipeline: {str(e)}")
-            if os.path.exists(video_path):
-                os.remove(video_path)
-
-# 7. Render Layout according to State (Safeguarded Session Getters)
-if st.session_state.get('analysis_done', False) and 'timeline_data' in st.session_state:
-    t_data = st.session_state['timeline_data']
-    
-    with tab_ov:
-        st.markdown("### 🖼️ Visual Timeline Audit Grid (10 OpenCV Milestones)")
-        for i in range(0, len(t_data), 2):
-            cols = st.columns(2)
-            with cols[0]:
-                st.image(t_data[i]['img'], caption=t_data[i]['label'], use_container_width=True)
-            with cols[1]:
-                if i+1 < len(t_data):
-                    st.image(t_data[i+1]['img'], caption=t_data[i+1]['label'], use_container_width=True)
-                    
-        st.divider()
-        st.markdown(st.session_state.get('overview_data', ''))
-        
-    with tab_cr: st.markdown(st.session_state.get('creative_data', ''))
-    with tab_ed: st.markdown(st.session_state.get('editor_data', ''))
-    with tab_mo: st.markdown(st.session_state.get('motion_data', ''))
-    with tab_pr: st.markdown(st.session_state.get('producer_data', ''))
-    
-    # 8. Render Dynamic PDF Export Engine inside the Sidebar
-    st.sidebar.divider()
-    st.sidebar.subheader("📥 Export & Share")
-    with st.sidebar.spinner("Compiling heavy-duty multi-page PDF report..."):
-        pdf_data = generate_pdf_report(
-            st.session_state.get('overview_data', ''),
-            st.session_state.get('creative_data', ''),
-            st.session_state.get('editor_data', ''),
-            st.session_state.get('motion_data', ''),
-            st.session_state.get('producer_data', ''),
-            intent_level,
-            t_data
-        )
-    st.sidebar.download_button(
-        label="🏆 Download Strategic PDF Audit",
-        data=pdf_data,
-        file_name="FansFormers_Titan_Strategic_Audit.pdf",
-        mime="application/pdf",
-        use_container_width=True
-    )
-else:
-    # Reset state variables dynamically if data corruption is cached
-    st.session_state['analysis_done'] = False
-    msg = "<div class='info-box'><p class='info-text'><strong>No match analysis loaded yet.</strong> Configure your strategic settings and hit <b>'Run FansFormers Analysis'</b> to generate the multi-page corporate report.</p></div>"
-    with tab_ov: st.markdown(msg, unsafe_allow_html=True)
-    with tab_cr: st.markdown(msg, unsafe_allow_html=True)
-    with tab_ed: st.markdown(msg, unsafe_allow_html=True)
-    with tab_mo: st.markdown(msg, unsafe_allow_html=True)
-    with tab_pr: st.markdown(msg, unsafe_allow_html=True)
+                2. [A] ANCHOR BRANDING (Brand Visual 3+ times, Logo Large >10%, Brand Mention first 5
