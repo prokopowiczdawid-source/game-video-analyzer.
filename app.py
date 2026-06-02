@@ -71,19 +71,30 @@ with st.container(border=True):
 
 st.divider()
 
-# 3. Enterprise PDF Generation Engine
+# 3. Enterprise PDF Generation Engine (With Rugged Encoding Protection)
 def generate_pdf_report(overview, creative, editor, motion, producer, intent):
+    def safe_text(t):
+        # 1. Map typical icons to clear string flags
+        t = t.replace("✅", "[PASSED]").replace("❌", "[FAILED]").replace("🔥", "[FOCUS]").replace("🧠", "[INFO]").replace("🎯", "[TARGET]")
+        # 2. Clean advanced typography to plain ASCII equivalents
+        t = t.replace("—", "-").replace("–", "-").replace("•", "*").replace("°", " deg ")
+        t = t.replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
+        # 3. Force filter out any unencodable symbols to prevent FPDF standard font engine crashes
+        return t.encode('latin-1', 'ignore').decode('latin-1')
+
     pdf = FPDF()
     pdf.add_page()
     
+    clean_intent = safe_text(intent)
+    
     # Header & Document Identity
-    pdf.set_font("Helvetica", "B", 20)
+    pdf.set_font("Helvetica", "B", 16)
     pdf.set_text_color(30, 41, 59) 
     pdf.cell(0, 10, "FansFormers GAME - Video Match Report", ln=True, align="C")
     
     pdf.set_font("Helvetica", "I", 10)
     pdf.set_text_color(148, 163, 184)
-    pdf.cell(0, 10, f"Strategy Objective: {intent} | Generated via FansFormers AI Engine", ln=True, align="C")
+    pdf.cell(0, 10, f"Strategy Objective: {clean_intent} | Generated via FansFormers AI Engine", ln=True, align="C")
     pdf.line(10, 32, 200, 32)
     pdf.ln(5)
     
@@ -104,9 +115,8 @@ def generate_pdf_report(overview, creative, editor, motion, producer, intent):
         pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(51, 65, 85)
         
-        # Clean specific emoticons to prevent FPDF standard font rendering crashes
-        clean_text = text.replace("✅", "[PASSED]").replace("❌", "[FAILED]").replace("🔥", "[FOCUS]").replace("🧠", "[INFO]").replace("🎯", "[TARGET]")
-        pdf.multi_cell(0, 5, clean_text)
+        clean_section_text = safe_text(text)
+        pdf.multi_cell(0, 5, clean_section_text)
         pdf.ln(5)
         
     pdf_output = io.BytesIO()
@@ -227,7 +237,6 @@ if run_btn:
                 # Core Failover Logic Execution Block
                 response = None
                 try:
-                    # Attempt 1: Try the core flagship model with a rapid retry mechanism
                     for attempt in range(3):
                         try:
                             response = client.models.generate_content(
@@ -243,7 +252,6 @@ if run_btn:
                                     continue
                             raise model_error
                 except Exception as primary_fault:
-                    # Fallback Activation: If 2.5-flash fails completely due to a 503, switch to 1.5-flash immediately
                     st.toast("🔄 Flagship engine congested. Activating ultra-stable High-Capacity Fallback Engine...")
                     response = client.models.generate_content(
                         model='gemini-1.5-flash',
