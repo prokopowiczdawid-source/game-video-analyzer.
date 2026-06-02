@@ -71,131 +71,212 @@ with st.container(border=True):
 
 st.divider()
 
-# 3. Enterprise PDF Generation Engine (With Image Insertion & Markdown Parsing)
-def generate_pdf_report(overview, creative, editor, motion, producer, intent, f2s, f5s):
+# 3. Heavy Duty Enterprise PDF Generation Engine (10 Evidence Screenshots + Advanced Formatting)
+def generate_pdf_report(overview, creative, editor, motion, producer, intent, frames_data):
     def safe_text(t):
-        # Clean emoticons
         t = t.replace("✅", "[PASSED]").replace("❌", "[FAILED]").replace("🔥", "[FOCUS]").replace("🧠", "[INFO]").replace("🎯", "[TARGET]")
-        # Clean advanced typography
-        t = t.replace("—", "-").replace("–", "-").replace("•", "*").replace("°", " deg ")
+        t = t.replace("—", "-").replace("–", "-").replace("•", "*").replace("°", " deg ").replace("`", "'")
         t = t.replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
-        
-        # Smart Table Parser: Convert raw markdown table rows into clean, readable lines
-        lines = t.split('\n')
-        cleaned_lines = []
-        for line in lines:
-            if "|" in line:
-                parts = [p.strip() for p in line.split("|") if p.strip()]
-                if parts and not all(c == '-' for c in parts[0]): 
-                    line = " -> " + " | ".join(parts)
-                else:
-                    continue  # skip the separator row (|---|---|)
-            cleaned_lines.append(line)
-        t = "\n".join(cleaned_lines)
-        
+        t = t.replace("**", "").replace("###", "").replace("##", "") # Strip markdown anchors cleanly
         return t.encode('latin-1', 'ignore').decode('latin-1')
 
     pdf = FPDF()
     pdf.add_page()
     
-    clean_intent = safe_text(intent)
+    # Page 1: Elegant Corporate Cover & High-Level Summary
+    pdf.set_font("Helvetica", "B", 22)
+    pdf.set_text_color(30, 41, 59) 
+    pdf.cell(0, 15, "FansFormers GAME Strategy Report", ln=True, align="C")
     
-    # Header & Document Identity
-    pdf.set_font("Helvetica", "B", 18)
-    pdf.set_text_color(30, 41, 59) # Deep Slate Dark
-    pdf.cell(0, 10, "FansFormers GAME - Video Match Report", ln=True, align="C")
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(2, 132, 199)
+    pdf.cell(0, 8, f"CAMPAIGN OBJECTIVE: {safe_text(intent).upper()}", ln=True, align="C")
     
-    pdf.set_font("Helvetica", "I", 10)
+    pdf.set_font("Helvetica", "I", 9)
     pdf.set_text_color(148, 163, 184)
-    pdf.cell(0, 8, f"Strategy Objective: {clean_intent} | Generated via FansFormers AI Engine", ln=True, align="C")
-    pdf.line(10, 30, 200, 30)
-    pdf.ln(5)
+    pdf.cell(0, 6, f"Proprietary Video Intelligence System | Generated: {time.strftime('%Y-%m-%d %H:%M')}", ln=True, align="C")
+    pdf.line(10, 42, 200, 42)
+    pdf.ln(8)
     
-    # --- VISUAL EVIDENCE SECTION (EMBEDDING OPENCV SCREENSHOTS) ---
-    pdf.set_font("Helvetica", "B", 12)
+    # Render First Grid of Visual Evidence (First 4 frames - The Crucial First 10 Seconds)
+    pdf.set_font("Helvetica", "B", 13)
     pdf.set_text_color(30, 41, 59)
-    pdf.cell(0, 10, "Captured Visual Evidence (OpenCV Proof Frames):", ln=True)
-    pdf.ln(2)
+    pdf.cell(0, 8, "I. Visual Timeline Audit - Initial Hook & Anchor Phase", ln=True)
+    pdf.ln(3)
     
-    # Save frames locally to temporary storage to feed FPDF safely
-    t_f2_path = "temp_pdf_f2.png"
-    t_f5_path = "temp_pdf_f5.png"
+    saved_paths = []
+    try:
+        # Loop through first 4 frames and lay them out in a 2x2 grid matrix
+        for idx, item in enumerate(frames_data[:4]):
+            t_path = f"temp_pdf_frame_{idx}.png"
+            cv2.imwrite(t_path, cv2.cvtColor(item['img'], cv2.COLOR_RGB2BGR))
+            saved_paths.append(t_path)
+            
+        c_y = pdf.get_y()
+        # Row 1
+        pdf.image(saved_paths[0], x=12, y=c_y, w=88)
+        pdf.image(saved_paths[1], x=110, y=c_y, w=88)
+        pdf.set_y(c_y + 51)
+        pdf.set_font("Helvetica", "I", 8)
+        pdf.set_text_color(100, 116, 139)
+        pdf.cell(92, 5, safe_text(frames_data[0]['label']), ln=False, align="C")
+        pdf.cell(100, 5, safe_text(frames_data[1]['label']), ln=True, align="C")
+        pdf.ln(2)
+        
+        # Row 2
+        c_y2 = pdf.get_y()
+        pdf.image(saved_paths[2], x=12, y=c_y2, w=88)
+        pdf.image(saved_paths[3], x=110, y=c_y2, w=88)
+        pdf.set_y(c_y2 + 51)
+        pdf.cell(92, 5, safe_text(frames_data[2]['label']), ln=False, align="C")
+        pdf.cell(100, 5, safe_text(frames_data[3]['label']), ln=True, align="C")
+        
+    except Exception as e:
+        pdf.cell(0, 5, f"[Visual Track Suppressed: {str(e)}]", ln=True)
+        
+    # Flush temporary files from server
+    for p in saved_paths:
+        if os.path.exists(p): os.remove(p)
+
+    # Force Page Break to structure the heavy textual breakdown cleanly
+    pdf.add_page()
     
-    has_images = False
-    if f2s is not None and f5s is not None:
-        try:
-            cv2.imwrite(t_f2_path, cv2.cvtColor(f2s, cv2.COLOR_RGB2BGR))
-            cv2.imwrite(t_f5_path, cv2.cvtColor(f5s, cv2.COLOR_RGB2BGR))
+    # Render Second Grid of Visual Evidence (Next 4 frames - Execution Phase) at top of Page 2
+    pdf.set_font("Helvetica", "B", 13)
+    pdf.set_text_color(30, 41, 59)
+    pdf.cell(0, 8, "II. Visual Timeline Audit - Content Mapping & CTA Phase", ln=True)
+    pdf.ln(3)
+    
+    saved_paths2 = []
+    try:
+        for idx, item in enumerate(frames_data[4:8]):
+            t_path = f"temp_pdf_frame_b_{idx}.png"
+            cv2.imwrite(t_path, cv2.cvtColor(item['img'], cv2.COLOR_RGB2BGR))
+            saved_paths2.append(t_path)
             
-            current_y = pdf.get_y()
-            # Render two screenshots side-by-side (Width: 85mm each)
-            pdf.image(t_f2_path, x=15, y=current_y, w=85)
-            pdf.image(t_f5_path, x=110, y=current_y, w=85)
+        c_y = pdf.get_y()
+        pdf.image(saved_paths2[0], x=12, y=c_y, w=88)
+        pdf.image(saved_paths2[1], x=110, y=c_y, w=88)
+        pdf.set_y(c_y + 51)
+        pdf.set_font("Helvetica", "I", 8)
+        pdf.set_text_color(100, 116, 139)
+        pdf.cell(92, 5, safe_text(frames_data[4]['label']), ln=False, align="C")
+        pdf.cell(100, 5, safe_text(frames_data[5]['label']), ln=True, align="C")
+        pdf.ln(2)
+        
+        c_y2 = pdf.get_y()
+        pdf.image(saved_paths2[2], x=12, y=c_y2, w=88)
+        pdf.image(saved_paths2[3], x=110, y=c_y2, w=88)
+        pdf.set_y(c_y2 + 51)
+        pdf.cell(92, 5, safe_text(frames_data[6]['label']), ln=False, align="C")
+        pdf.cell(100, 5, safe_text(frames_data[7]['label']), ln=True, align="C")
+        
+    except Exception as e:
+        pdf.cell(0, 5, f"[Visual Track B Suppressed: {str(e)}]", ln=True)
+        
+    for p in saved_paths2:
+        if os.path.exists(p): os.remove(p)
+
+    pdf.add_page()
+    
+    # Render Last Grid (Final 2 frames - Outro Matrix) at top of Page 3
+    pdf.set_font("Helvetica", "B", 13)
+    pdf.set_text_color(30, 41, 59)
+    pdf.cell(0, 8, "III. Visual Timeline Audit - Final Closing Real Estate", ln=True)
+    pdf.ln(3)
+    
+    saved_paths3 = []
+    try:
+        for idx, item in enumerate(frames_data[8:10]):
+            t_path = f"temp_pdf_frame_c_{idx}.png"
+            cv2.imwrite(t_path, cv2.cvtColor(item['img'], cv2.COLOR_RGB2BGR))
+            saved_paths3.append(t_path)
             
-            # Move document cursor past the images to avoid overlap text crashes
-            pdf.set_y(current_y + 53) 
-            pdf.set_font("Helvetica", "I", 8)
-            pdf.set_text_color(148, 163, 184)
-            pdf.cell(90, 5, "Frame 1: The Hook (00:02 Check)", ln=False, align="C")
-            pdf.cell(100, 5, "Frame 2: Identity & Connection (00:05 Check)", ln=True, align="C")
-            pdf.ln(6)
-            has_images = True
-        except Exception as img_err:
-            pdf.cell(0, 5, f"[Visual Assets Staging Ignored: {str(img_err)}]", ln=True)
-            pdf.ln(2)
+        c_y = pdf.get_y()
+        pdf.image(saved_paths3[0], x=12, y=c_y, w=88)
+        pdf.image(saved_paths3[1], x=110, y=c_y, w=88)
+        pdf.set_y(c_y + 51)
+        pdf.set_font("Helvetica", "I", 8)
+        pdf.set_text_color(100, 116, 139)
+        pdf.cell(92, 5, safe_text(frames_data[8]['label']), ln=False, align="C")
+        pdf.cell(100, 5, safe_text(frames_data[9]['label']), ln=True, align="C")
+        pdf.ln(5)
+    except Exception as e:
+        pdf.cell(0, 5, f"[Visual Track C Suppressed: {str(e)}]", ln=True)
+        
+    for p in saved_paths3:
+        if os.path.exists(p): os.remove(p)
 
-    # Clean temporary files if written
-    if has_images:
-        if os.path.exists(t_f2_path): os.remove(t_f2_path)
-        if os.path.exists(t_f5_path): os.remove(t_f5_path)
-
+    # Core Textual Sections Iteration Loop
     sections = [
-        ("Match Overview & Metrics", overview),
-        ("Creative & Copywriting Strategy", creative),
-        ("Video Editor Tactical Cuts", editor),
-        ("Motion & Graphic Design Guidelines", motion),
-        ("Producer & Director Takeaways", producer)
+        ("Strategic Match Overview & Core Diagnostics", overview),
+        ("Creative & Copywriting Deep-Dive Report", creative),
+        ("Video Editor Tactical Cuts Timeline Blueprint", editor),
+        ("Motion & Graphic Design High-Impact Guidelines", motion),
+        ("Producer & Director Executive Takeaways", producer)
     ]
     
     for title, text in sections:
-        # Prevent section title split orphan rows near page bottoms
-        if pdf.get_y() > 240:
+        if pdf.get_y() > 220:
             pdf.add_page()
             
         pdf.set_font("Helvetica", "B", 14)
-        pdf.set_text_color(2, 132, 199) # Executive Blue Accent
-        pdf.cell(0, 10, title, ln=True)
-        pdf.ln(1)
+        pdf.set_text_color(2, 132, 199) # High Contrast Corporate Blue
+        pdf.cell(0, 12, title, ln=True)
+        pdf.line(pdf.get_x(), pdf.get_y(), pdf.get_x() + 190, pdf.get_y())
+        pdf.ln(3)
         
         pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(51, 65, 85)
         
         clean_section_text = safe_text(text)
-        pdf.multi_cell(0, 5, clean_section_text)
-        pdf.ln(4)
+        pdf.multi_cell(0, 6, clean_section_text)
+        pdf.ln(5)
         
     pdf_output = io.BytesIO()
     pdf.output(pdf_output)
     pdf_output.seek(0)
     return pdf_output
 
-# 4. Technical Core Engines Configuration (Frame Extraction)
-def extract_video_frame(video_path, seconds):
+# 4. Multimodal High-Speed Frame Processing Unit (10 Tactical Benchmarks)
+def extract_tactical_timeline(video_path):
+    timestamps = [0, 2, 5, 8, 11, 14, 17, 20, 24, 28]
+    labels = [
+        "00:00 - Initial Entry / Hook Frame",
+        "00:02 - Brand Anchor / Early ID Check",
+        "00:05 - Connection Frame / Face Real Estate",
+        "00:08 - Problem Mapping / Context Validation",
+        "00:11 - Solution Introduction / Formulation",
+        "00:14 - Functional Benefit / Active Animation",
+        "00:17 - Authority Check / Trust Endorsement",
+        "00:20 - Audience Retention / Mid-Ad Pace",
+        "00:24 - Conversion Phase / CTA Entry Point",
+        "00:28 - Closing Asset / Final Brand Impression"
+    ]
+    
+    extracted_set = []
     try:
         cap = cv2.VideoCapture(video_path)
         fps = cap.get(cv2.CAP_PROP_FPS)
         if fps == 0: fps = 30
-        frame_id = int(fps * seconds)
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_id)
-        ret, frame = cap.read()
-        if ret:
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            cap.release()
-            return frame_rgb
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        duration_sec = total_frames / fps
+        
+        for t, label in zip(timestamps, labels):
+            # Fallback handling for very short clip bounds checking
+            target_sec = t if t < duration_sec else (duration_sec - 0.5)
+            if target_sec < 0: target_sec = 0
+            
+            frame_id = int(fps * target_sec)
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_id)
+            ret, frame = cap.read()
+            if ret:
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                extracted_set.append({'time': t, 'label': label, 'img': frame_rgb})
         cap.release()
-    except:
-        pass
-    return None
+    except Exception as e:
+        st.error(f"OpenCV Timeline Assembly Fault: {str(e)}")
+    return extracted_set
 
 def extract_section(text, start_marker, end_marker):
     try:
@@ -209,9 +290,9 @@ def extract_section(text, start_marker, end_marker):
 
 # 5. Interactive Tabs Setup (Handles both Empty State & Filled State)
 tab_ov, tab_cr, tab_ed, tab_mo, tab_pr = st.tabs([
-    "📊 Match Overview", 
+    "📊 Match Overview & Timeline", 
     "✍️ Creative / Copywriter", 
-    "🎬 Video Editor", 
+    "🎬 Video Editor Blueprint", 
     "🎨 Motion Designer", 
     "📢 Producer / Director"
 ])
@@ -240,45 +321,43 @@ if run_btn:
                 if video_file.state.name == "FAILED":
                     raise Exception("Multimodal processing pipeline failed inside AI Sandbox.")
 
-            with st.spinner("📊 Extracting tactical video frames via OpenCV engine..."):
-                frame_2s = extract_video_frame(video_path, 2)
-                frame_5s = extract_video_frame(video_path, 5)
+            with st.spinner("📊 OpenCV Core extracting 10 key tactical timeline milestones..."):
+                timeline_data = extract_tactical_timeline(video_path)
 
-            with st.spinner("🧠 Analyzing audiovisual spectrum against Campaign Brief..."):
+            with st.spinner("🧠 Generating deep multi-page corporate analysis against Brief & Context..."):
                 system_prompt = """
-                You are the Core AI Engine of the FansFormers Video Assessment Tool, an expert system specializing in YouTube video ad optimization based on FansFormers GAME Creative Best Practices. Your job is to analyze the provided video content (visual frames, audio, and transcript) against the FansFormers GAME Framework, while heavily adjusting your analysis weights based on the user's provided Campaign Brief and Cultural Context.
+                You are the Core AI Engine of the FansFormers Video Assessment Tool, an elite corporate system specializing in video ad optimization based on FansFormers GAME Creative Best Practices. Your job is to output a deep, highly exhaustive, role-based "Strategic Match Report" with an Expected Goals (xGoal) probability score from 0 to 100.
 
-                STRICT OUTPUT STRUCTURING RULE:
-                You MUST wrap each section of your response exactly within the specified delimiter tags so the frontend parser can separate them into dashboard tabs.
+                CRITICAL INDENTATION & FORMATTING RULE:
+                Do NOT output markdown tables using pipe characters (|) or line dashes (---). They cause parsing errors in the PDF exporter. Instead, format all tables or data breakdowns as clean, capitalized text labels separated by arrows, colons or bullet points (e.g., "* BRANDING INTRO: 0:02 - 10% Screen Area").
+                
+                Make your analysis extremely granular, detailed, and professional to provide massive value for an enterprise brand team. Write long, comprehensive paragraphs for each role.
 
-                Use these exact tags:
+                STRICT OUTPUT STRUCTURING TAGS:
                 ===OVERVIEW_START===
-                [Your overall performance assessment, xGoal breakdown table, and metric summaries]
+                [Provide an exhaustive performance diagnostic. Output a detailed "FansFormers Positioning Stopwatch Data Breakdown" using text bullet lines tracking exact timestamps for Branding Presence and CTA Presence against the requested Context. Provide an in-depth breakdown for all 4 pillars of the GAME framework with exact numbers and percentage ratings, culminating in a final overall xGoal score]
                 ===OVERVIEW_END===
 
                 ===CREATIVE_START===
-                [Actionable tasks for the Creative / Copywriter]
+                [Provide long, hyper-detailed tactical paragraphs for the Creative / Copywriter. For every finding, explicitly detail the TACTICAL GAP, the underlying BUSINESS IMPACT on the target demographic, and the RECOMMENDED ACTION with calculated xGoal lifts]
                 ===CREATIVE_END===
 
                 ===EDITOR_START===
-                [Actionable tasks for the Video Editor]
+                [Provide deep, highly actionable paragraphs for the Video Editor. Map precise time-coded instructions matching the 10 core milestones. Specify exactly where cuts must be accelerated, frames sharpened, or pacing shifted to maximize audience retention]
                 ===EDITOR_END===
 
                 ===MOTION_START===
-                [Actionable tasks for the Motion & Graphic Designer]
+                [Provide technical guidelines for the Motion & Graphic Designer. Detail exact visual asset styling instructions, color-palette matching rules, on-screen text animations (Supers), and UI graphic overlays to boost attention retention metrics]
                 ===MOTION_END===
 
                 ===PRODUCER_START===
-                [Strategic takeaways for the Producer / Director for future shoots]
+                [Provide strategic takeaways for the Producer and Director for future commercial video shoots. Focus on camera angling, casting diversity, storytelling structure, and product interaction protocols to feed upcoming media buying funnels]
                 ===PRODUCER_END===
 
-                CRITICAL REPORT CONTENT REQUIREMENTS:
+                CRITICAL CONTENT RULES:
                 1. All text must be in ENGLISH.
-                2. Do NOT mention Google or ABCD framework. Always refer to this as the FansFormers GAME Framework.
-                3. Under the ===OVERVIEW_START=== section, you MUST generate a "FansFormers Strategic Positioning & Stopwatch Table" tracking exactly:
-                   - Branding Presence (Start-End timestamps, Total Duration, Screen Area % estimate, and Awareness Benchmark check).
-                   - Call to Action (CTA) Presence (Start-End timestamps, Total Duration, Delivery style - text vs verbal, and Action Stage Benchmark check).
-                4. CONTEXT INTEGRATION RULE: You must cross-reference the video execution against the user's Brief and Context. Evaluate whether the pacing, vocabulary, and imagery fit the requested cultural event (e.g., Mundial) or target demographic. If there is a mismatch, penalize the xGoal score and output a clear "Contextual Drift Warning".
+                2. Do NOT mention Google or the ABCD framework. Always refer to this as the FansFormers GAME Framework.
+                3. Heavily adjust analysis weights based on the user's provided Campaign Brief and Cultural Context. Cross-reference the execution metrics against the requested event or demographic. If the ad fails to capture the requested theme, output a bold "CONTEXTUAL DRIFT WARNING" detailing the specific alignment gap.
                 
                 ### THE FansFormers GAME FRAMEWORK DEFINITIONS
                 1. [G] GRAB ATTENTION (Pacing, Tight Framing, Audio Power, See & Say Supers)
@@ -289,7 +368,7 @@ if run_btn:
 
                 user_context = f"Selected Intent Level: {intent_level}. Campaign Brief & Cultural Context Provided by Brand Manager: '{campaign_context}'."
 
-                # Core Failover Logic Execution Block
+                # Core Failover Execution Engine
                 response = None
                 try:
                     for attempt in range(3):
@@ -328,8 +407,7 @@ if run_btn:
                 st.session_state['editor_data'] = editor_data
                 st.session_state['motion_data'] = motion_data
                 st.session_state['producer_data'] = producer_data
-                st.session_state['f2s'] = frame_2s
-                st.session_state['f5s'] = frame_5s
+                st.session_state['timeline_data'] = timeline_data
                 
                 st.rerun()
 
@@ -340,15 +418,20 @@ if run_btn:
 
 # 7. Render Layout according to State (Empty State UX Solution)
 if st.session_state.get('analysis_done', False):
+    t_data = st.session_state['timeline_data']
+    
     with tab_ov:
-        st.markdown("### 🖼️ Visual Proofs (Extracted Kicks)")
-        col_f1, col_f2 = st.columns(2)
-        with col_f1:
-            if st.session_state['f2s'] is not None:
-                st.image(st.session_state['f2s'], caption="The Hook Frame (00:02)", use_container_width=True)
-        with col_f2:
-            if st.session_state['f5s'] is not None:
-                st.image(st.session_state['f5s'], caption="The Identity Frame (00:05)", use_container_width=True)
+        st.markdown("### 🖼️ Visual Timeline Audit Grid (10 OpenCV Milestones)")
+        
+        # Display the 10 screenshots in an elegant 5x2 row layout matrix on the frontend
+        for i in range(0, len(t_data), 2):
+            cols = st.columns(2)
+            with cols[0]:
+                st.image(t_data[i]['img'], caption=t_data[i]['label'], use_container_width=True)
+            with cols[1]:
+                if i+1 < len(t_data):
+                    st.image(t_data[i+1]['img'], caption=t_data[i+1]['label'], use_container_width=True)
+                    
         st.divider()
         st.markdown(st.session_state['overview_data'])
         
@@ -360,7 +443,7 @@ if st.session_state.get('analysis_done', False):
     # 8. Render Dynamic PDF Export Engine inside the Sidebar
     st.sidebar.divider()
     st.sidebar.subheader("📥 Export & Share")
-    with st.sidebar.spinner("Preparing PDF asset..."):
+    with st.sidebar.spinner("Compiling heavy-duty multi-page PDF report..."):
         pdf_data = generate_pdf_report(
             st.session_state['overview_data'],
             st.session_state['creative_data'],
@@ -368,18 +451,17 @@ if st.session_state.get('analysis_done', False):
             st.session_state['motion_data'],
             st.session_state['producer_data'],
             intent_level,
-            st.session_state['f2s'],
-            st.session_state['f5s']
+            t_data
         )
     st.sidebar.download_button(
-        label="🏆 Download PDF Report",
+        label="🏆 Download Strategic PDF Audit",
         data=pdf_data,
-        file_name="FansFormers_GAME_Match_Report.pdf",
+        file_name="FansFormers_Titan_Strategic_Audit.pdf",
         mime="application/pdf",
         use_container_width=True
     )
 else:
-    msg = "<div class='info-box'><p class='info-text'><strong>No match analysis loaded yet.</strong> Configure your settings and hit <b>'Run FansFormers Analysis'</b> to generate the proprietary dashboard report.</p></div>"
+    msg = "<div class='info-box'><p class='info-text'><strong>No match analysis loaded yet.</strong> Configure your strategic settings and hit <b>'Run FansFormers Analysis'</b> to generate the multi-page corporate report.</p></div>"
     with tab_ov: st.markdown(msg, unsafe_allow_html=True)
     with tab_cr: st.markdown(msg, unsafe_allow_html=True)
     with tab_ed: st.markdown(msg, unsafe_allow_html=True)
