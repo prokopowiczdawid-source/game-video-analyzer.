@@ -71,15 +71,28 @@ with st.container(border=True):
 
 st.divider()
 
-# 3. Enterprise PDF Generation Engine (With Rugged Encoding Protection)
-def generate_pdf_report(overview, creative, editor, motion, producer, intent):
+# 3. Enterprise PDF Generation Engine (With Image Insertion & Markdown Parsing)
+def generate_pdf_report(overview, creative, editor, motion, producer, intent, f2s, f5s):
     def safe_text(t):
-        # 1. Map typical icons to clear string flags
+        # Clean emoticons
         t = t.replace("✅", "[PASSED]").replace("❌", "[FAILED]").replace("🔥", "[FOCUS]").replace("🧠", "[INFO]").replace("🎯", "[TARGET]")
-        # 2. Clean advanced typography to plain ASCII equivalents
+        # Clean advanced typography
         t = t.replace("—", "-").replace("–", "-").replace("•", "*").replace("°", " deg ")
         t = t.replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
-        # 3. Force filter out any unencodable symbols to prevent FPDF standard font engine crashes
+        
+        # Smart Table Parser: Convert raw markdown table rows into clean, readable lines
+        lines = t.split('\n')
+        cleaned_lines = []
+        for line in lines:
+            if "|" in line:
+                parts = [p.strip() for p in line.split("|") if p.strip()]
+                if parts and not all(c == '-' for c in parts[0]): 
+                    line = " -> " + " | ".join(parts)
+                else:
+                    continue  # skip the separator row (|---|---|)
+            cleaned_lines.append(line)
+        t = "\n".join(cleaned_lines)
+        
         return t.encode('latin-1', 'ignore').decode('latin-1')
 
     pdf = FPDF()
@@ -88,16 +101,54 @@ def generate_pdf_report(overview, creative, editor, motion, producer, intent):
     clean_intent = safe_text(intent)
     
     # Header & Document Identity
-    pdf.set_font("Helvetica", "B", 16)
-    pdf.set_text_color(30, 41, 59) 
+    pdf.set_font("Helvetica", "B", 18)
+    pdf.set_text_color(30, 41, 59) # Deep Slate Dark
     pdf.cell(0, 10, "FansFormers GAME - Video Match Report", ln=True, align="C")
     
     pdf.set_font("Helvetica", "I", 10)
     pdf.set_text_color(148, 163, 184)
-    pdf.cell(0, 10, f"Strategy Objective: {clean_intent} | Generated via FansFormers AI Engine", ln=True, align="C")
-    pdf.line(10, 32, 200, 32)
+    pdf.cell(0, 8, f"Strategy Objective: {clean_intent} | Generated via FansFormers AI Engine", ln=True, align="C")
+    pdf.line(10, 30, 200, 30)
     pdf.ln(5)
     
+    # --- VISUAL EVIDENCE SECTION (EMBEDDING OPENCV SCREENSHOTS) ---
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.set_text_color(30, 41, 59)
+    pdf.cell(0, 10, "Captured Visual Evidence (OpenCV Proof Frames):", ln=True)
+    pdf.ln(2)
+    
+    # Save frames locally to temporary storage to feed FPDF safely
+    t_f2_path = "temp_pdf_f2.png"
+    t_f5_path = "temp_pdf_f5.png"
+    
+    has_images = False
+    if f2s is not None and f5s is not None:
+        try:
+            cv2.imwrite(t_f2_path, cv2.cvtColor(f2s, cv2.COLOR_RGB2BGR))
+            cv2.imwrite(t_f5_path, cv2.cvtColor(f5s, cv2.COLOR_RGB2BGR))
+            
+            current_y = pdf.get_y()
+            # Render two screenshots side-by-side (Width: 85mm each)
+            pdf.image(t_f2_path, x=15, y=current_y, w=85)
+            pdf.image(t_f5_path, x=110, y=current_y, w=85)
+            
+            # Move document cursor past the images to avoid overlap text crashes
+            pdf.set_y(current_y + 53) 
+            pdf.set_font("Helvetica", "I", 8)
+            pdf.set_text_color(148, 163, 184)
+            pdf.cell(90, 5, "Frame 1: The Hook (00:02 Check)", ln=False, align="C")
+            pdf.cell(100, 5, "Frame 2: Identity & Connection (00:05 Check)", ln=True, align="C")
+            pdf.ln(6)
+            has_images = True
+        except Exception as img_err:
+            pdf.cell(0, 5, f"[Visual Assets Staging Ignored: {str(img_err)}]", ln=True)
+            pdf.ln(2)
+
+    # Clean temporary files if written
+    if has_images:
+        if os.path.exists(t_f2_path): os.remove(t_f2_path)
+        if os.path.exists(t_f5_path): os.remove(t_f5_path)
+
     sections = [
         ("Match Overview & Metrics", overview),
         ("Creative & Copywriting Strategy", creative),
@@ -107,17 +158,21 @@ def generate_pdf_report(overview, creative, editor, motion, producer, intent):
     ]
     
     for title, text in sections:
+        # Prevent section title split orphan rows near page bottoms
+        if pdf.get_y() > 240:
+            pdf.add_page()
+            
         pdf.set_font("Helvetica", "B", 14)
-        pdf.set_text_color(2, 132, 199) 
+        pdf.set_text_color(2, 132, 199) # Executive Blue Accent
         pdf.cell(0, 10, title, ln=True)
-        pdf.ln(2)
+        pdf.ln(1)
         
         pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(51, 65, 85)
         
         clean_section_text = safe_text(text)
         pdf.multi_cell(0, 5, clean_section_text)
-        pdf.ln(5)
+        pdf.ln(4)
         
     pdf_output = io.BytesIO()
     pdf.output(pdf_output)
@@ -312,7 +367,9 @@ if st.session_state.get('analysis_done', False):
             st.session_state['editor_data'],
             st.session_state['motion_data'],
             st.session_state['producer_data'],
-            intent_level
+            intent_level,
+            st.session_state['f2s'],
+            st.session_state['f5s']
         )
     st.sidebar.download_button(
         label="🏆 Download PDF Report",
