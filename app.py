@@ -75,6 +75,14 @@ st.divider()
 def generate_pdf_report(overview, creative, editor, motion, producer, intent, frames_data):
     def safe_text(t):
         if not t: return ""
+        # Map Polish characters to base Latin equivalents for core standard Helvetica support
+        pl_map = {
+            'ą': 'a', 'ć': 'c', 'ę': 'e', 'ł': 'l', 'ń': 'n', 'ó': 'o', 'ś': 's', 'ź': 'z', 'ż': 'z',
+            'Ą': 'A', 'Ć': 'C', 'Ę': 'E', 'Ł': 'L', 'Ń': 'N', 'Ó': 'O', 'Ś': 'S', 'Ź': 'Z', 'Ż': 'Z'
+        }
+        for pl_char, latin_char in pl_map.items():
+            t = t.replace(pl_char, latin_char)
+            
         t = t.replace("✅", "[PASSED]").replace("❌", "[FAILED]").replace("🔥", "[FOCUS]").replace("🧠", "[INFO]").replace("🎯", "[TARGET]")
         t = t.replace("—", "-").replace("–", "-").replace("•", "*").replace("°", " deg ").replace("`", "'")
         t = t.replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
@@ -82,15 +90,6 @@ def generate_pdf_report(overview, creative, editor, motion, producer, intent, fr
         return t.encode('latin-1', 'ignore').decode('latin-1')
 
     pdf = FPDF()
-    if not frames_data:
-        pdf.add_page()
-        pdf.set_font("Helvetica", "B", 14)
-        pdf.cell(0, 10, "FansFormers GAME Report (Timeline Processing Fault)", ln=True)
-        pdf_output = io.BytesIO()
-        pdf.output(pdf_output)
-        pdf_output.seek(0)
-        return pdf_output
-
     pdf.add_page()
     
     # Page 1: Elegant Corporate Cover & High-Level Summary
@@ -108,21 +107,21 @@ def generate_pdf_report(overview, creative, editor, motion, producer, intent, fr
     pdf.line(10, 42, 200, 42)
     pdf.ln(8)
     
-    # Render First Grid of Visual Evidence (First 4 frames - The Crucial First 10 Seconds)
-    pdf.set_font("Helvetica", "B", 13)
-    pdf.set_text_color(30, 41, 59)
-    pdf.cell(0, 8, "I. Visual Timeline Audit - Initial Hook & Anchor Phase", ln=True)
-    pdf.ln(3)
-    
-    saved_paths = []
-    try:
-        for idx, item in enumerate(frames_data[:4]):
-            t_path = f"temp_pdf_frame_{idx}.png"
-            cv2.imwrite(t_path, cv2.cvtColor(item['img'], cv2.COLOR_RGB2BGR))
-            saved_paths.append(t_path)
-            
-        c_y = pdf.get_y()
-        if len(saved_paths) >= 2:
+    # Render First Grid of Visual Evidence if image data exists safely
+    if frames_data and len(frames_data) >= 4:
+        pdf.set_font("Helvetica", "B", 13)
+        pdf.set_text_color(30, 41, 59)
+        pdf.cell(0, 8, "I. Visual Timeline Audit - Initial Hook & Anchor Phase", ln=True)
+        pdf.ln(3)
+        
+        saved_paths = []
+        try:
+            for idx, item in enumerate(frames_data[:4]):
+                t_path = f"temp_pdf_frame_{idx}.png"
+                cv2.imwrite(t_path, cv2.cvtColor(item['img'], cv2.COLOR_RGB2BGR))
+                saved_paths.append(t_path)
+                
+            c_y = pdf.get_y()
             pdf.image(saved_paths[0], x=12, y=c_y, w=88)
             pdf.image(saved_paths[1], x=110, y=c_y, w=88)
             pdf.set_y(c_y + 51)
@@ -131,38 +130,37 @@ def generate_pdf_report(overview, creative, editor, motion, producer, intent, fr
             pdf.cell(92, 5, safe_text(frames_data[0]['label']), ln=False, align="C")
             pdf.cell(100, 5, safe_text(frames_data[1]['label']), ln=True, align="C")
             pdf.ln(2)
-        
-        if len(saved_paths) >= 4:
+            
             c_y2 = pdf.get_y()
             pdf.image(saved_paths[2], x=12, y=c_y2, w=88)
             pdf.image(saved_paths[3], x=110, y=c_y2, w=88)
             pdf.set_y(c_y2 + 51)
             pdf.cell(92, 5, safe_text(frames_data[2]['label']), ln=False, align="C")
             pdf.cell(100, 5, safe_text(frames_data[3]['label']), ln=True, align="C")
-        
-    except Exception as e:
-        pdf.cell(0, 5, f"[Visual Track Suppressed: {str(e)}]", ln=True)
-        
-    for p in saved_paths:
-        if os.path.exists(p): os.remove(p)
-
-    pdf.add_page()
-    
-    # Render Second Grid of Visual Evidence (Next 4 frames - Execution Phase)
-    pdf.set_font("Helvetica", "B", 13)
-    pdf.set_text_color(30, 41, 59)
-    pdf.cell(0, 8, "II. Visual Timeline Audit - Content Mapping & CTA Phase", ln=True)
-    pdf.ln(3)
-    
-    saved_paths2 = []
-    try:
-        for idx, item in enumerate(frames_data[4:8]):
-            t_path = f"temp_pdf_frame_b_{idx}.png"
-            cv2.imwrite(t_path, cv2.cvtColor(item['img'], cv2.COLOR_RGB2BGR))
-            saved_paths2.append(t_path)
             
-        c_y = pdf.get_y()
-        if len(saved_paths2) >= 2:
+        except Exception as e:
+            pdf.cell(0, 5, f"[Visual Track A Suppressed: {str(e)}]", ln=True)
+            
+        for p in saved_paths:
+            if os.path.exists(p): os.remove(p)
+
+        pdf.add_page()
+
+    # Render Second Grid of Visual Evidence (Next 4 frames - Execution Phase)
+    if frames_data and len(frames_data) >= 8:
+        pdf.set_font("Helvetica", "B", 13)
+        pdf.set_text_color(30, 41, 59)
+        pdf.cell(0, 8, "II. Visual Timeline Audit - Content Mapping & CTA Phase", ln=True)
+        pdf.ln(3)
+        
+        saved_paths2 = []
+        try:
+            for idx, item in enumerate(frames_data[4:8]):
+                t_path = f"temp_pdf_frame_b_{idx}.png"
+                cv2.imwrite(t_path, cv2.cvtColor(item['img'], cv2.COLOR_RGB2BGR))
+                saved_paths2.append(t_path)
+                
+            c_y = pdf.get_y()
             pdf.image(saved_paths2[0], x=12, y=c_y, w=88)
             pdf.image(saved_paths2[1], x=110, y=c_y, w=88)
             pdf.set_y(c_y + 51)
@@ -171,38 +169,37 @@ def generate_pdf_report(overview, creative, editor, motion, producer, intent, fr
             pdf.cell(92, 5, safe_text(frames_data[4]['label']), ln=False, align="C")
             pdf.cell(100, 5, safe_text(frames_data[5]['label']), ln=True, align="C")
             pdf.ln(2)
-        
-        if len(saved_paths2) >= 4:
+            
             c_y2 = pdf.get_y()
             pdf.image(saved_paths2[2], x=12, y=c_y2, w=88)
             pdf.image(saved_paths2[3], x=110, y=c_y2, w=88)
             pdf.set_y(c_y2 + 51)
             pdf.cell(92, 5, safe_text(frames_data[6]['label']), ln=False, align="C")
             pdf.cell(100, 5, safe_text(frames_data[7]['label']), ln=True, align="C")
-        
-    except Exception as e:
-        pdf.cell(0, 5, f"[Visual Track B Suppressed: {str(e)}]", ln=True)
-        
-    for p in saved_paths2:
-        if os.path.exists(p): os.remove(p)
+            
+        except Exception as e:
+            pdf.cell(0, 5, f"[Visual Track B Suppressed: {str(e)}]", ln=True)
+            
+        for p in saved_paths2:
+            if os.path.exists(p): os.remove(p)
 
-    pdf.add_page()
+        pdf.add_page()
     
     # Render Last Grid (Final 2 frames - Outro Matrix)
-    pdf.set_font("Helvetica", "B", 13)
-    pdf.set_text_color(30, 41, 59)
-    pdf.cell(0, 8, "III. Visual Timeline Audit - Final Closing Real Estate", ln=True)
-    pdf.ln(3)
-    
-    saved_paths3 = []
-    try:
-        for idx, item in enumerate(frames_data[8:10]):
-            t_path = f"temp_pdf_frame_c_{idx}.png"
-            cv2.imwrite(t_path, cv2.cvtColor(item['img'], cv2.COLOR_RGB2BGR))
-            saved_paths3.append(t_path)
-            
-        c_y = pdf.get_y()
-        if len(saved_paths3) >= 2:
+    if frames_data and len(frames_data) >= 10:
+        pdf.set_font("Helvetica", "B", 13)
+        pdf.set_text_color(30, 41, 59)
+        pdf.cell(0, 8, "III. Visual Timeline Audit - Final Closing Real Estate", ln=True)
+        pdf.ln(3)
+        
+        saved_paths3 = []
+        try:
+            for idx, item in enumerate(frames_data[8:10]):
+                t_path = f"temp_pdf_frame_c_{idx}.png"
+                cv2.imwrite(t_path, cv2.cvtColor(item['img'], cv2.COLOR_RGB2BGR))
+                saved_paths3.append(t_path)
+                
+            c_y = pdf.get_y()
             pdf.image(saved_paths3[0], x=12, y=c_y, w=88)
             pdf.image(saved_paths3[1], x=110, y=c_y, w=88)
             pdf.set_y(c_y + 51)
@@ -211,12 +208,14 @@ def generate_pdf_report(overview, creative, editor, motion, producer, intent, fr
             pdf.cell(92, 5, safe_text(frames_data[8]['label']), ln=False, align="C")
             pdf.cell(100, 5, safe_text(frames_data[9]['label']), ln=True, align="C")
             pdf.ln(5)
-    except Exception as e:
-        pdf.cell(0, 5, f"[Visual Track C Suppressed: {str(e)}]", ln=True)
-        
-    for p in saved_paths3:
-        if os.path.exists(p): os.remove(p)
+        except Exception as e:
+            pdf.cell(0, 5, f"[Visual Track C Suppressed: {str(e)}]", ln=True)
+            
+        for p in saved_paths3:
+            if os.path.exists(p): os.remove(p)
+        pdf.add_page()
 
+    # Core Textual Sections Iteration Loop
     sections = [
         ("Strategic Match Overview & Core Diagnostics", overview),
         ("Creative & Copywriting Deep-Dive Report", creative),
@@ -265,26 +264,30 @@ def extract_tactical_timeline(video_path):
     extracted_set = []
     try:
         cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            return extracted_set
+            
         fps = cap.get(cv2.CAP_PROP_FPS)
-        if fps == 0: fps = 30
-        total_frames = int(cap.get(cap.get(cv2.CAP_PROP_FRAME_COUNT) if hasattr(cv2, 'CAP_PROP_FRAME_COUNT') else 7))
-        # Safely compute total frames to avoid system failures
-        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if fps <= 0: fps = 30.0
+        
+        total_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+        if total_frames <= 0: total_frames = 900
+        
         duration_sec = total_frames / fps
         
         for t, label in zip(timestamps, labels):
-            target_sec = t if t < duration_sec else (duration_sec - 0.5)
+            target_sec = t if t < duration_sec else (duration_sec - 0.1)
             if target_sec < 0: target_sec = 0
             
             frame_id = int(fps * target_sec)
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame_id)
             ret, frame = cap.read()
-            if ret:
+            if ret and frame is not None:
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 extracted_set.append({'time': t, 'label': label, 'img': frame_rgb})
         cap.release()
-    except Exception as e:
-        st.error(f"OpenCV Timeline Assembly Fault: {str(e)}")
+    except:
+        pass
     return extracted_set
 
 def extract_section(text, start_marker, end_marker):
@@ -424,18 +427,21 @@ if run_btn:
                 os.remove(video_path)
 
 # 7. Render Layout according to State (Safeguarded Session Getters)
-if st.session_state.get('analysis_done', False) and 'timeline_data' in st.session_state:
-    t_data = st.session_state['timeline_data']
+if st.session_state.get('analysis_done', False):
+    t_data = st.session_state.get('timeline_data', [])
     
     with tab_ov:
-        st.markdown("### 🖼️ Visual Timeline Audit Grid (10 OpenCV Milestones)")
-        for i in range(0, len(t_data), 2):
-            cols = st.columns(2)
-            with cols[0]:
-                st.image(t_data[i]['img'], caption=t_data[i]['label'], use_container_width=True)
-            with cols[1]:
-                if i+1 < len(t_data):
-                    st.image(t_data[i+1]['img'], caption=t_data[i+1]['label'], use_container_width=True)
+        if t_data:
+            st.markdown("### 🖼️ Visual Timeline Audit Grid (10 OpenCV Milestones)")
+            for i in range(0, len(t_data), 2):
+                cols = st.columns(2)
+                with cols[0]:
+                    st.image(t_data[i]['img'], caption=t_data[i]['label'], use_container_width=True)
+                with cols[1]:
+                    if i+1 < len(t_data):
+                        st.image(t_data[i+1]['img'], caption=t_data[i+1]['label'], use_container_width=True)
+        else:
+            st.warning("⚠️ Visual Timeline frames could not be rendered due to server backend constraint, displaying textual analytics:")
                     
         st.divider()
         st.markdown(st.session_state.get('overview_data', ''))
