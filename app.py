@@ -267,6 +267,8 @@ def extract_tactical_timeline(video_path):
         cap = cv2.VideoCapture(video_path)
         fps = cap.get(cv2.CAP_PROP_FPS)
         if fps == 0: fps = 30
+        total_frames = int(cap.get(cap.get(cv2.CAP_PROP_FRAME_COUNT) if hasattr(cv2, 'CAP_PROP_FRAME_COUNT') else 7))
+        # Safely compute total frames to avoid system failures
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         duration_sec = total_frames / fps
         
@@ -279,4 +281,195 @@ def extract_tactical_timeline(video_path):
             ret, frame = cap.read()
             if ret:
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                extracted_set.append({'time': t
+                extracted_set.append({'time': t, 'label': label, 'img': frame_rgb})
+        cap.release()
+    except Exception as e:
+        st.error(f"OpenCV Timeline Assembly Fault: {str(e)}")
+    return extracted_set
+
+def extract_section(text, start_marker, end_marker):
+    try:
+        start_idx = text.find(start_marker)
+        end_idx = text.find(end_marker)
+        if start_idx != -1 and end_idx != -1:
+            return text[start_idx + len(start_marker):end_idx].strip()
+        return text
+    except:
+        return text
+
+# 5. Interactive Tabs Setup (Handles both Empty State & Filled State)
+tab_ov, tab_cr, tab_ed, tab_mo, tab_pr = st.tabs([
+    "📊 Match Overview & Timeline", 
+    "✍️ Creative / Copywriter", 
+    "🎬 Video Editor Blueprint", 
+    "🎨 Motion Designer", 
+    "📢 Producer / Director"
+])
+
+# 6. Pipeline Logic Integration
+if run_btn:
+    if not api_key:
+        st.error("Missing API Authentication. Please insert your API Key in the sidebar.")
+    elif not uploaded_file:
+        st.warning("Please upload a local MP4 file to run the analysis pipeline.")
+    else:
+        # Twarde czyszczenie starego stanu sesji przed nowym biegiem
+        st.session_state['analysis_done'] = False
+        if 'timeline_data' in st.session_state: del st.session_state['timeline_data']
+        
+        video_path = "temp_video.mp4"
+        try:
+            client = genai.Client(api_key=api_key.strip())
+            
+            with st.spinner("📦 Staging uploaded video file onto server..."):
+                with open(video_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
+                
+            with st.spinner("🤖 Uploading asset to AI Sandbox..."):
+                video_file = client.files.upload(file=video_path)
+                while video_file.state.name == "PROCESSING":
+                    time.sleep(2)
+                    video_file = client.files.get(name=video_file.name)
+                
+                if video_file.state.name == "FAILED":
+                    raise Exception("Multimodal processing pipeline failed inside AI Sandbox.")
+
+            with st.spinner("📊 OpenCV Core extracting 10 key tactical timeline milestones..."):
+                timeline_data = extract_tactical_timeline(video_path)
+
+            with st.spinner("🧠 Generating deep multi-page corporate analysis against Brief & Context..."):
+                system_prompt = """
+                You are the Core AI Engine of the FailedFormers Video Assessment Tool, an elite corporate system specializing in video ad optimization based on FansFormers GAME Creative Best Practices. Your job is to output a deep, highly exhaustive, role-based "Strategic Match Report" with an Expected Goals (xGoal) probability score from 0 to 100.
+
+                CRITICAL INDENTATION & FORMATTING RULE:
+                Do NOT output markdown tables using pipe characters (|) or line dashes (---). They cause parsing errors in the PDF exporter. Instead, format all tables or data breakdowns as clean, capitalized text labels separated by arrows, colons or bullet points (e.g., "* BRANDING INTRO: 0:02 - 10% Screen Area").
+                
+                Make your analysis extremely granular, detailed, and professional to provide massive value for an enterprise brand team. Write long, comprehensive paragraphs for each role.
+
+                STRICT OUTPUT STRUCTURING TAGS:
+                ===OVERVIEW_START===
+                [Provide an exhaustive performance diagnostic. Output a detailed "FansFormers Positioning Stopwatch Data Breakdown" using text bullet lines tracking exact timestamps for Branding Presence and CTA Presence against the requested Context. Provide an in-depth breakdown for all 4 pillars of the GAME framework with exact numbers and percentage ratings, culminating in a final overall xGoal score]
+                ===OVERVIEW_END===
+
+                ===CREATIVE_START===
+                [Provide long, hyper-detailed tactical paragraphs for the Creative / Copywriter. For every finding, explicitly detail the TACTICAL GAP, the underlying BUSINESS IMPACT on the target demographic, and the RECOMMENDED ACTION with calculated xGoal lifts]
+                ===CREATIVE_END===
+
+                ===EDITOR_START===
+                [Provide deep, highly actionable paragraphs for the Video Editor. Map precise time-coded instructions matching the 10 core milestones. Specify exactly where cuts must be accelerated, frames sharpened, or pacing shifted to maximize audience retention]
+                ===EDITOR_END===
+
+                ===MOTION_START===
+                [Provide technical guidelines for the Motion & Graphic Designer. Detail exact visual asset styling instructions, color-palette matching rules, on-screen text animations (Supers), and UI graphic overlays to boost attention retention metrics]
+                ===MOTION_END===
+
+                ===PRODUCER_START===
+                [Provide strategic takeaways for the Producer and Director for future commercial video shoots. Focus on camera angling, casting diversity, storytelling structure, and product interaction protocols to feed upcoming media buying funnels]
+                ===PRODUCER_END===
+
+                CRITICAL CONTENT RULES:
+                1. All text must be in ENGLISH.
+                2. Do NOT mention Google or the ABCD framework. Always refer to this as the FansFormers GAME Framework.
+                3. Heavily adjust analysis weights based on the user's provided Campaign Brief and Cultural Context. Cross-reference the execution metrics against the requested event or demographic. If the ad fails to capture the requested theme, output a bold "CONTEXTUAL DRIFT WARNING" detailing the specific alignment gap.
+                
+                ### THE FansFormers GAME FRAMEWORK DEFINITIONS
+                1. [G] GRAB ATTENTION (Pacing, Tight Framing, Audio Power, See & Say Supers)
+                2. [A] ANCHOR BRANDING (Brand Visual 3+ times, Logo Large >10%, Brand Mention first 5s)
+                3. [M] MAKE CONNECTION (Presence of People, Visible Face first 5s, Product Interaction)
+                4. [E] EXECUTE DIRECTION (CTA presence, Path to Purchase, Purchase Incentive)
+                """
+
+                user_context = f"Selected Intent Level: {intent_level}. Campaign Brief & Cultural Context Provided by Brand Manager: '{campaign_context}'."
+
+                # Optimized Rugged Execution Loop - Sticks strictly to compatible gemini-2.5-flash
+                response = None
+                for attempt in range(4):
+                    try:
+                        response = client.models.generate_content(
+                            model='gemini-2.5-flash',
+                            contents=[video_file, system_prompt, user_context]
+                        )
+                        break
+                    except Exception as model_error:
+                        err_str = str(model_error)
+                        if "503" in err_str or "UNAVAILABLE" in err_str:
+                            if attempt < 3:
+                                time.sleep(5)
+                                st.toast(f"⚠️ Flagship cluster busy. Retrying block ({attempt + 2}/4)...")
+                                continue
+                        raise model_error
+                
+                raw_report = response.text
+                
+                # Dynamic extraction
+                overview_data = extract_section(raw_report, "===OVERVIEW_START===", "===OVERVIEW_END===")
+                creative_data = extract_section(raw_report, "===CREATIVE_START===", "===CREATIVE_END===")
+                editor_data = extract_section(raw_report, "===EDITOR_START===", "===EDITOR_END===")
+                motion_data = extract_section(raw_report, "===MOTION_START===", "===MOTION_END===")
+                producer_data = extract_section(raw_report, "===PRODUCER_START===", "===PRODUCER_END===")
+                
+                st.session_state['overview_data'] = overview_data
+                st.session_state['creative_data'] = creative_data
+                st.session_state['editor_data'] = editor_data
+                st.session_state['motion_data'] = motion_data
+                st.session_state['producer_data'] = producer_data
+                st.session_state['timeline_data'] = timeline_data
+                st.session_state['analysis_done'] = True
+                
+                st.rerun()
+
+        except Exception as e:
+            st.error(f"Execution Error during analysis pipeline: {str(e)}")
+            if os.path.exists(video_path):
+                os.remove(video_path)
+
+# 7. Render Layout according to State (Safeguarded Session Getters)
+if st.session_state.get('analysis_done', False) and 'timeline_data' in st.session_state:
+    t_data = st.session_state['timeline_data']
+    
+    with tab_ov:
+        st.markdown("### 🖼️ Visual Timeline Audit Grid (10 OpenCV Milestones)")
+        for i in range(0, len(t_data), 2):
+            cols = st.columns(2)
+            with cols[0]:
+                st.image(t_data[i]['img'], caption=t_data[i]['label'], use_container_width=True)
+            with cols[1]:
+                if i+1 < len(t_data):
+                    st.image(t_data[i+1]['img'], caption=t_data[i+1]['label'], use_container_width=True)
+                    
+        st.divider()
+        st.markdown(st.session_state.get('overview_data', ''))
+        
+    with tab_cr: st.markdown(st.session_state.get('creative_data', ''))
+    with tab_ed: st.markdown(st.session_state.get('editor_data', ''))
+    with tab_mo: st.markdown(st.session_state.get('motion_data', ''))
+    with tab_pr: st.markdown(st.session_state.get('producer_data', ''))
+    
+    # 8. Render Dynamic PDF Export Engine inside the Sidebar
+    st.sidebar.divider()
+    st.sidebar.subheader("📥 Export & Share")
+    with st.sidebar.spinner("Compiling heavy-duty multi-page PDF report..."):
+        pdf_data = generate_pdf_report(
+            st.session_state.get('overview_data', ''),
+            st.session_state.get('creative_data', ''),
+            st.session_state.get('editor_data', ''),
+            st.session_state.get('motion_data', ''),
+            st.session_state.get('producer_data', ''),
+            intent_level,
+            t_data
+        )
+    st.sidebar.download_button(
+        label="🏆 Download Strategic PDF Audit",
+        data=pdf_data,
+        file_name="FansFormers_Titan_Strategic_Audit.pdf",
+        mime="application/pdf",
+        use_container_width=True
+    )
+else:
+    st.session_state['analysis_done'] = False
+    msg = "<div class='info-box'><p class='info-text'><strong>No match analysis loaded yet.</strong> Configure your strategic settings and hit <b>'Run FansFormers Analysis'</b> to generate the multi-page corporate report.</p></div>"
+    with tab_ov: st.markdown(msg, unsafe_allow_html=True)
+    with tab_cr: st.markdown(msg, unsafe_allow_html=True)
+    with tab_ed: st.markdown(msg, unsafe_allow_html=True)
+    with tab_mo: st.markdown(msg, unsafe_allow_html=True)
+    with tab_pr: st.markdown(msg, unsafe_allow_html=True)
