@@ -74,13 +74,24 @@ st.divider()
 # 3. Heavy Duty Enterprise PDF Generation Engine (10 Evidence Screenshots + Advanced Formatting)
 def generate_pdf_report(overview, creative, editor, motion, producer, intent, frames_data):
     def safe_text(t):
+        if not t: return ""
         t = t.replace("✅", "[PASSED]").replace("❌", "[FAILED]").replace("🔥", "[FOCUS]").replace("🧠", "[INFO]").replace("🎯", "[TARGET]")
         t = t.replace("—", "-").replace("–", "-").replace("•", "*").replace("°", " deg ").replace("`", "'")
         t = t.replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
-        t = t.replace("**", "").replace("###", "").replace("##", "") # Strip markdown anchors cleanly
+        t = t.replace("**", "").replace("###", "").replace("##", "")
         return t.encode('latin-1', 'ignore').decode('latin-1')
 
     pdf = FPDF()
+    if not frames_data:
+        # Prevent crash if image grid execution fails
+        pdf.add_page()
+        pdf.set_font("Helvetica", "B", 14)
+        pdf.cell(0, 10, "FansFormers GAME Report (Timeline Processing Fault)", ln=True)
+        pdf_output = io.BytesIO()
+        pdf.output(pdf_output)
+        pdf_output.seek(0)
+        return pdf_output
+
     pdf.add_page()
     
     # Page 1: Elegant Corporate Cover & High-Level Summary
@@ -106,42 +117,39 @@ def generate_pdf_report(overview, creative, editor, motion, producer, intent, fr
     
     saved_paths = []
     try:
-        # Loop through first 4 frames and lay them out in a 2x2 grid matrix
         for idx, item in enumerate(frames_data[:4]):
             t_path = f"temp_pdf_frame_{idx}.png"
             cv2.imwrite(t_path, cv2.cvtColor(item['img'], cv2.COLOR_RGB2BGR))
             saved_paths.append(t_path)
             
         c_y = pdf.get_y()
-        # Row 1
-        pdf.image(saved_paths[0], x=12, y=c_y, w=88)
-        pdf.image(saved_paths[1], x=110, y=c_y, w=88)
-        pdf.set_y(c_y + 51)
-        pdf.set_font("Helvetica", "I", 8)
-        pdf.set_text_color(100, 116, 139)
-        pdf.cell(92, 5, safe_text(frames_data[0]['label']), ln=False, align="C")
-        pdf.cell(100, 5, safe_text(frames_data[1]['label']), ln=True, align="C")
-        pdf.ln(2)
+        if len(saved_paths) >= 2:
+            pdf.image(saved_paths[0], x=12, y=c_y, w=88)
+            pdf.image(saved_paths[1], x=110, y=c_y, w=88)
+            pdf.set_y(c_y + 51)
+            pdf.set_font("Helvetica", "I", 8)
+            pdf.set_text_color(100, 116, 139)
+            pdf.cell(92, 5, safe_text(frames_data[0]['label']), ln=False, align="C")
+            pdf.cell(100, 5, safe_text(frames_data[1]['label']), ln=True, align="C")
+            pdf.ln(2)
         
-        # Row 2
-        c_y2 = pdf.get_y()
-        pdf.image(saved_paths[2], x=12, y=c_y2, w=88)
-        pdf.image(saved_paths[3], x=110, y=c_y2, w=88)
-        pdf.set_y(c_y2 + 51)
-        pdf.cell(92, 5, safe_text(frames_data[2]['label']), ln=False, align="C")
-        pdf.cell(100, 5, safe_text(frames_data[3]['label']), ln=True, align="C")
+        if len(saved_paths) >= 4:
+            c_y2 = pdf.get_y()
+            pdf.image(saved_paths[2], x=12, y=c_y2, w=88)
+            pdf.image(saved_paths[3], x=110, y=c_y2, w=88)
+            pdf.set_y(c_y2 + 51)
+            pdf.cell(92, 5, safe_text(frames_data[2]['label']), ln=False, align="C")
+            pdf.cell(100, 5, safe_text(frames_data[3]['label']), ln=True, align="C")
         
     except Exception as e:
         pdf.cell(0, 5, f"[Visual Track Suppressed: {str(e)}]", ln=True)
         
-    # Flush temporary files from server
     for p in saved_paths:
         if os.path.exists(p): os.remove(p)
 
-    # Force Page Break to structure the heavy textual breakdown cleanly
     pdf.add_page()
     
-    # Render Second Grid of Visual Evidence (Next 4 frames - Execution Phase) at top of Page 2
+    # Render Second Grid of Visual Evidence (Next 4 frames - Execution Phase)
     pdf.set_font("Helvetica", "B", 13)
     pdf.set_text_color(30, 41, 59)
     pdf.cell(0, 8, "II. Visual Timeline Audit - Content Mapping & CTA Phase", ln=True)
@@ -155,21 +163,23 @@ def generate_pdf_report(overview, creative, editor, motion, producer, intent, fr
             saved_paths2.append(t_path)
             
         c_y = pdf.get_y()
-        pdf.image(saved_paths2[0], x=12, y=c_y, w=88)
-        pdf.image(saved_paths2[1], x=110, y=c_y, w=88)
-        pdf.set_y(c_y + 51)
-        pdf.set_font("Helvetica", "I", 8)
-        pdf.set_text_color(100, 116, 139)
-        pdf.cell(92, 5, safe_text(frames_data[4]['label']), ln=False, align="C")
-        pdf.cell(100, 5, safe_text(frames_data[5]['label']), ln=True, align="C")
-        pdf.ln(2)
+        if len(saved_paths2) >= 2:
+            pdf.image(saved_paths2[0], x=12, y=c_y, w=88)
+            pdf.image(saved_paths2[1], x=110, y=c_y, w=88)
+            pdf.set_y(c_y + 51)
+            pdf.set_font("Helvetica", "I", 8)
+            pdf.set_text_color(100, 116, 139)
+            pdf.cell(92, 5, safe_text(frames_data[4]['label']), ln=False, align="C")
+            pdf.cell(100, 5, safe_text(frames_data[5]['label']), ln=True, align="C")
+            pdf.ln(2)
         
-        c_y2 = pdf.get_y()
-        pdf.image(saved_paths2[2], x=12, y=c_y2, w=88)
-        pdf.image(saved_paths2[3], x=110, y=c_y2, w=88)
-        pdf.set_y(c_y2 + 51)
-        pdf.cell(92, 5, safe_text(frames_data[6]['label']), ln=False, align="C")
-        pdf.cell(100, 5, safe_text(frames_data[7]['label']), ln=True, align="C")
+        if len(saved_paths2) >= 4:
+            c_y2 = pdf.get_y()
+            pdf.image(saved_paths2[2], x=12, y=c_y2, w=88)
+            pdf.image(saved_paths2[3], x=110, y=c_y2, w=88)
+            pdf.set_y(c_y2 + 51)
+            pdf.cell(92, 5, safe_text(frames_data[6]['label']), ln=False, align="C")
+            pdf.cell(100, 5, safe_text(frames_data[7]['label']), ln=True, align="C")
         
     except Exception as e:
         pdf.cell(0, 5, f"[Visual Track B Suppressed: {str(e)}]", ln=True)
@@ -179,7 +189,7 @@ def generate_pdf_report(overview, creative, editor, motion, producer, intent, fr
 
     pdf.add_page()
     
-    # Render Last Grid (Final 2 frames - Outro Matrix) at top of Page 3
+    # Render Last Grid (Final 2 frames - Outro Matrix)
     pdf.set_font("Helvetica", "B", 13)
     pdf.set_text_color(30, 41, 59)
     pdf.cell(0, 8, "III. Visual Timeline Audit - Final Closing Real Estate", ln=True)
@@ -193,21 +203,21 @@ def generate_pdf_report(overview, creative, editor, motion, producer, intent, fr
             saved_paths3.append(t_path)
             
         c_y = pdf.get_y()
-        pdf.image(saved_paths3[0], x=12, y=c_y, w=88)
-        pdf.image(saved_paths3[1], x=110, y=c_y, w=88)
-        pdf.set_y(c_y + 51)
-        pdf.set_font("Helvetica", "I", 8)
-        pdf.set_text_color(100, 116, 139)
-        pdf.cell(92, 5, safe_text(frames_data[8]['label']), ln=False, align="C")
-        pdf.cell(100, 5, safe_text(frames_data[9]['label']), ln=True, align="C")
-        pdf.ln(5)
+        if len(saved_paths3) >= 2:
+            pdf.image(saved_paths3[0], x=12, y=c_y, w=88)
+            pdf.image(saved_paths3[1], x=110, y=c_y, w=88)
+            pdf.set_y(c_y + 51)
+            pdf.set_font("Helvetica", "I", 8)
+            pdf.set_text_color(100, 116, 139)
+            pdf.cell(92, 5, safe_text(frames_data[8]['label']), ln=False, align="C")
+            pdf.cell(100, 5, safe_text(frames_data[9]['label']), ln=True, align="C")
+            pdf.ln(5)
     except Exception as e:
         pdf.cell(0, 5, f"[Visual Track C Suppressed: {str(e)}]", ln=True)
         
     for p in saved_paths3:
         if os.path.exists(p): os.remove(p)
 
-    # Core Textual Sections Iteration Loop
     sections = [
         ("Strategic Match Overview & Core Diagnostics", overview),
         ("Creative & Copywriting Deep-Dive Report", creative),
@@ -221,9 +231,8 @@ def generate_pdf_report(overview, creative, editor, motion, producer, intent, fr
             pdf.add_page()
             
         pdf.set_font("Helvetica", "B", 14)
-        pdf.set_text_color(2, 132, 199) # High Contrast Corporate Blue
+        pdf.set_text_color(2, 132, 199) 
         pdf.cell(0, 12, title, ln=True)
-        pdf.line(pdf.get_x(), pdf.get_y(), pdf.get_x() + 190, pdf.get_y())
         pdf.ln(3)
         
         pdf.set_font("Helvetica", "", 10)
@@ -263,7 +272,6 @@ def extract_tactical_timeline(video_path):
         duration_sec = total_frames / fps
         
         for t, label in zip(timestamps, labels):
-            # Fallback handling for very short clip bounds checking
             target_sec = t if t < duration_sec else (duration_sec - 0.5)
             if target_sec < 0: target_sec = 0
             
@@ -304,6 +312,10 @@ if run_btn:
     elif not uploaded_file:
         st.warning("Please upload a local MP4 file to run the analysis pipeline.")
     else:
+        # Twarde czyszczenie starego stanu sesji przed nowym biegiem
+        st.session_state['analysis_done'] = False
+        if 'timeline_data' in st.session_state: del st.session_state['timeline_data']
+        
         video_path = "temp_video.mp4"
         try:
             client = genai.Client(api_key=api_key.strip())
@@ -401,13 +413,13 @@ if run_btn:
                 motion_data = extract_section(raw_report, "===MOTION_START===", "===MOTION_END===")
                 producer_data = extract_section(raw_report, "===PRODUCER_START===", "===PRODUCER_END===")
                 
-                st.session_state['analysis_done'] = True
                 st.session_state['overview_data'] = overview_data
                 st.session_state['creative_data'] = creative_data
                 st.session_state['editor_data'] = editor_data
                 st.session_state['motion_data'] = motion_data
                 st.session_state['producer_data'] = producer_data
                 st.session_state['timeline_data'] = timeline_data
+                st.session_state['analysis_done'] = True
                 
                 st.rerun()
 
@@ -416,14 +428,12 @@ if run_btn:
             if os.path.exists(video_path):
                 os.remove(video_path)
 
-# 7. Render Layout according to State (Empty State UX Solution)
-if st.session_state.get('analysis_done', False):
+# 7. Render Layout according to State (Safeguarded Session Getters)
+if st.session_state.get('analysis_done', False) and 'timeline_data' in st.session_state:
     t_data = st.session_state['timeline_data']
     
     with tab_ov:
         st.markdown("### 🖼️ Visual Timeline Audit Grid (10 OpenCV Milestones)")
-        
-        # Display the 10 screenshots in an elegant 5x2 row layout matrix on the frontend
         for i in range(0, len(t_data), 2):
             cols = st.columns(2)
             with cols[0]:
@@ -433,23 +443,23 @@ if st.session_state.get('analysis_done', False):
                     st.image(t_data[i+1]['img'], caption=t_data[i+1]['label'], use_container_width=True)
                     
         st.divider()
-        st.markdown(st.session_state['overview_data'])
+        st.markdown(st.session_state.get('overview_data', ''))
         
-    with tab_cr: st.markdown(st.session_state['creative_data'])
-    with tab_ed: st.markdown(st.session_state['editor_data'])
-    with tab_mo: st.markdown(st.session_state['motion_data'])
-    with tab_pr: st.markdown(st.session_state['producer_data'])
+    with tab_cr: st.markdown(st.session_state.get('creative_data', ''))
+    with tab_ed: st.markdown(st.session_state.get('editor_data', ''))
+    with tab_mo: st.markdown(st.session_state.get('motion_data', ''))
+    with tab_pr: st.markdown(st.session_state.get('producer_data', ''))
     
     # 8. Render Dynamic PDF Export Engine inside the Sidebar
     st.sidebar.divider()
     st.sidebar.subheader("📥 Export & Share")
     with st.sidebar.spinner("Compiling heavy-duty multi-page PDF report..."):
         pdf_data = generate_pdf_report(
-            st.session_state['overview_data'],
-            st.session_state['creative_data'],
-            st.session_state['editor_data'],
-            st.session_state['motion_data'],
-            st.session_state['producer_data'],
+            st.session_state.get('overview_data', ''),
+            st.session_state.get('creative_data', ''),
+            st.session_state.get('editor_data', ''),
+            st.session_state.get('motion_data', ''),
+            st.session_state.get('producer_data', ''),
             intent_level,
             t_data
         )
@@ -461,6 +471,8 @@ if st.session_state.get('analysis_done', False):
         use_container_width=True
     )
 else:
+    # Reset state variables dynamically if data corruption is cached
+    st.session_state['analysis_done'] = False
     msg = "<div class='info-box'><p class='info-text'><strong>No match analysis loaded yet.</strong> Configure your strategic settings and hit <b>'Run FansFormers Analysis'</b> to generate the multi-page corporate report.</p></div>"
     with tab_ov: st.markdown(msg, unsafe_allow_html=True)
     with tab_cr: st.markdown(msg, unsafe_allow_html=True)
