@@ -3,6 +3,8 @@ from google import genai
 import os
 import time
 import cv2
+from fpdf import FPDF
+import io
 
 # 1. Premium FansFormers Responsive Theme Configuration
 st.set_page_config(page_title="FansFormers GAME Video Analytics", page_icon="⚽", layout="wide")
@@ -69,7 +71,50 @@ with st.container(border=True):
 
 st.divider()
 
-# 3. Technical Core Engines Configuration (Frame Extraction)
+# 3. Enterprise PDF Generation Engine
+def generate_pdf_report(overview, creative, editor, motion, producer, intent):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Header & Document Identity
+    pdf.set_font("Helvetica", "B", 20)
+    pdf.set_text_color(30, 41, 59) 
+    pdf.cell(0, 10, "FansFormers GAME - Video Match Report", ln=True, align="C")
+    
+    pdf.set_font("Helvetica", "I", 10)
+    pdf.set_text_color(148, 163, 184)
+    pdf.cell(0, 10, f"Strategy Objective: {intent} | Generated via FansFormers AI Engine", ln=True, align="C")
+    pdf.line(10, 32, 200, 32)
+    pdf.ln(5)
+    
+    sections = [
+        ("Match Overview & Metrics", overview),
+        ("Creative & Copywriting Strategy", creative),
+        ("Video Editor Tactical Cuts", editor),
+        ("Motion & Graphic Design Guidelines", motion),
+        ("Producer & Director Takeaways", producer)
+    ]
+    
+    for title, text in sections:
+        pdf.set_font("Helvetica", "B", 14)
+        pdf.set_text_color(2, 132, 199) 
+        pdf.cell(0, 10, title, ln=True)
+        pdf.ln(2)
+        
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(51, 65, 85)
+        
+        # Clean specific emoticons to prevent FPDF standard font rendering crashes
+        clean_text = text.replace("✅", "[PASSED]").replace("❌", "[FAILED]").replace("🔥", "[FOCUS]").replace("🧠", "[INFO]").replace("🎯", "[TARGET]")
+        pdf.multi_cell(0, 5, clean_text)
+        pdf.ln(5)
+        
+    pdf_output = io.BytesIO()
+    pdf.output(pdf_output)
+    pdf_output.seek(0)
+    return pdf_output
+
+# 4. Technical Core Engines Configuration (Frame Extraction)
 def extract_video_frame(video_path, seconds):
     try:
         cap = cv2.VideoCapture(video_path)
@@ -97,7 +142,7 @@ def extract_section(text, start_marker, end_marker):
     except:
         return text
 
-# 4. Interactive Tabs Setup (Handles both Empty State & Filled State)
+# 5. Interactive Tabs Setup (Handles both Empty State & Filled State)
 tab_ov, tab_cr, tab_ed, tab_mo, tab_pr = st.tabs([
     "📊 Match Overview", 
     "✍️ Creative / Copywriter", 
@@ -106,7 +151,7 @@ tab_ov, tab_cr, tab_ed, tab_mo, tab_pr = st.tabs([
     "📢 Producer / Director"
 ])
 
-# 5. Pipeline Logic Integration
+# 6. Pipeline Logic Integration
 if run_btn:
     if not api_key:
         st.error("Missing API Authentication. Please insert your API Key in the sidebar.")
@@ -171,48 +216,39 @@ if run_btn:
                 4. CONTEXT INTEGRATION RULE: You must cross-reference the video execution against the user's Brief and Context. Evaluate whether the pacing, vocabulary, and imagery fit the requested cultural event (e.g., Mundial) or target demographic. If there is a mismatch, penalize the xGoal score and output a clear "Contextual Drift Warning".
                 
                 ### THE FansFormers GAME FRAMEWORK DEFINITIONS
-
-                1. [G] GRAB ATTENTION
-                - Quick Pacing (First 5s): Look for 5 or more shot changes/visual cuts within the first 5 seconds.
-                - Tight Framing: Evaluate if subjects/products are tightly framed/zoomed-in (essential for vertical Shorts formats).
-                - Audio Power: Confirm presence of Voice (VO/Dialogue), Music, and Sound Effects.
-                - See & Say Supers: On-screen text must match the spoken words exactly in the same frame.
-
-                2. [A] ANCHOR BRANDING
-                - Brand Visual (3+ Times): Branding (logo, product, packaging) must appear on at least 3 non-consecutive frames.
-                - Brand Logo (Large): Check if the logo takes up at least 10% of the screen area.
-                - Brand Mention (First 5s): Brand or generic product category name must be heard in audio within the first 4.99 seconds.
-
-                3. [M] MAKE CONNECTION
-                - Presence of People (Close-up): A human or animated character must take up at least 30% of the frame.
-                - Visible Face (First 5s): At least one human face must be present in the first 5 seconds.
-                - Product Interaction & Context: Talent must physically interact with the product in a relatable setting.
-
-                4. [E] EXECUTE DIRECTION
-                - Call-to-Action: Detect specific CTA phrases in both Supers (text) and Audio (speech).
-                - Path to Purchase: Presence of a visual Search Bar or explicit mention of how/where to buy.
-                - Purchase Incentive / Urgency: Explicit mentions of limited time, scarcity, or special offers.
+                1. [G] GRAB ATTENTION (Pacing, Tight Framing, Audio Power, See & Say Supers)
+                2. [A] ANCHOR BRANDING (Brand Visual 3+ times, Logo Large >10%, Brand Mention first 5s)
+                3. [M] MAKE CONNECTION (Presence of People, Visible Face first 5s, Product Interaction)
+                4. [E] EXECUTE DIRECTION (CTA presence, Path to Purchase, Purchase Incentive)
                 """
 
                 user_context = f"Selected Intent Level: {intent_level}. Campaign Brief & Cultural Context Provided by Brand Manager: '{campaign_context}'."
 
-                # Automated Retry Loop for 503 Spikes
+                # Core Failover Logic Execution Block
                 response = None
-                for attempt in range(3):
-                    try:
-                        response = client.models.generate_content(
-                            model='gemini-2.5-flash',
-                            contents=[video_file, system_prompt, user_context]
-                        )
-                        break
-                    except Exception as model_error:
-                        err_str = str(model_error)
-                        if "503" in err_str or "UNAVAILABLE" in err_str:
-                            if attempt < 2:
-                                time.sleep(4)
-                                st.toast(f"⚠️ Server heavily congested. Retrying analysis block (Attempt {attempt + 2}/3)...")
-                                continue
-                        raise model_error
+                try:
+                    # Attempt 1: Try the core flagship model with a rapid retry mechanism
+                    for attempt in range(3):
+                        try:
+                            response = client.models.generate_content(
+                                model='gemini-2.5-flash',
+                                contents=[video_file, system_prompt, user_context]
+                            )
+                            break
+                        except Exception as model_error:
+                            if "503" in str(model_error) or "UNAVAILABLE" in str(model_error):
+                                if attempt < 2:
+                                    time.sleep(3)
+                                    st.toast(f"⚠️ Flagship cluster busy. Retrying block ({attempt + 2}/3)...")
+                                    continue
+                            raise model_error
+                except Exception as primary_fault:
+                    # Fallback Activation: If 2.5-flash fails completely due to a 503, switch to 1.5-flash immediately
+                    st.toast("🔄 Flagship engine congested. Activating ultra-stable High-Capacity Fallback Engine...")
+                    response = client.models.generate_content(
+                        model='gemini-1.5-flash',
+                        contents=[video_file, system_prompt, user_context]
+                    )
                 
                 raw_report = response.text
                 
@@ -239,17 +275,17 @@ if run_btn:
             if os.path.exists(video_path):
                 os.remove(video_path)
 
-# 6. Render Layout according to State (Empty State UX Solution)
+# 7. Render Layout according to State (Empty State UX Solution)
 if st.session_state.get('analysis_done', False):
     with tab_ov:
         st.markdown("### 🖼️ Visual Proofs (Extracted Kicks)")
         col_f1, col_f2 = st.columns(2)
         with col_f1:
             if st.session_state['f2s'] is not None:
-                st.image(st.session_state['f2s'], caption="The Hook Frame (00:02) - Pacing & Attention Check", use_container_width=True)
+                st.image(st.session_state['f2s'], caption="The Hook Frame (00:02)", use_container_width=True)
         with col_f2:
             if st.session_state['f5s'] is not None:
-                st.image(st.session_state['f5s'], caption="The Identity Frame (00:05) - Early Branding & Face Check", use_container_width=True)
+                st.image(st.session_state['f5s'], caption="The Identity Frame (00:05)", use_container_width=True)
         st.divider()
         st.markdown(st.session_state['overview_data'])
         
@@ -257,8 +293,28 @@ if st.session_state.get('analysis_done', False):
     with tab_ed: st.markdown(st.session_state['editor_data'])
     with tab_mo: st.markdown(st.session_state['motion_data'])
     with tab_pr: st.markdown(st.session_state['producer_data'])
+    
+    # 8. Render Dynamic PDF Export Engine inside the Sidebar
+    st.sidebar.divider()
+    st.sidebar.subheader("📥 Export & Share")
+    with st.sidebar.spinner("Preparing PDF asset..."):
+        pdf_data = generate_pdf_report(
+            st.session_state['overview_data'],
+            st.session_state['creative_data'],
+            st.session_state['editor_data'],
+            st.session_state['motion_data'],
+            st.session_state['producer_data'],
+            intent_level
+        )
+    st.sidebar.download_button(
+        label="🏆 Download PDF Report",
+        data=pdf_data,
+        file_name="FansFormers_GAME_Match_Report.pdf",
+        mime="application/pdf",
+        use_container_width=True
+    )
 else:
-    msg = "<div class='info-box'><p class='info-text'><strong>No match analysis loaded yet.</strong> Please configure your access key, select a video asset source above, and hit <b>'Run FansFormers Analysis'</b> to generate your proprietary tactical dashboard report.</p></div>"
+    msg = "<div class='info-box'><p class='info-text'><strong>No match analysis loaded yet.</strong> Configure your settings and hit <b>'Run FansFormers Analysis'</b> to generate the proprietary dashboard report.</p></div>"
     with tab_ov: st.markdown(msg, unsafe_allow_html=True)
     with tab_cr: st.markdown(msg, unsafe_allow_html=True)
     with tab_ed: st.markdown(msg, unsafe_allow_html=True)
